@@ -1,0 +1,20 @@
+{
+  "name": "business-walrus",
+  "private": true,
+  "workspaces": [
+    "web",
+    "api"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm:dev:web\" \"npm:dev:api\"",
+    "dev:web": "npm --workspace web run dev",
+    "dev:api": "npm --workspace api run dev",
+    "build": "npm run build:web && npm run build:api",
+    "build:web": "npm --workspace web run build",
+    "build:api": "npm --workspace api run build",
+    "start:api": "npm --workspace api run start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
