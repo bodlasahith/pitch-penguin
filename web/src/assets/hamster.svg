@@ -1,0 +1,30 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="110" r="50" fill="#FFD166"/>
+  <!-- Ears -->
+  <circle cx="65" cy="75" r="12" fill="#F4A261"/>
+  <circle cx="135" cy="75" r="12" fill="#F4A261"/>
+  <circle cx="65" cy="75" r="6" fill="#FAD7A0"/>
+  <circle cx="135" cy="75" r="6" fill="#FAD7A0"/>
+  <!-- Eyes -->
+  <ellipse cx="80" cy="90" rx="8" ry="10" fill="white"/>
+  <ellipse cx="120" cy="90" rx="8" ry="10" fill="white"/>
+  <circle cx="80" cy="92" r="5" fill="#222"/>
+  <circle cx="120" cy="92" r="5" fill="#222"/>
+  <circle cx="82" cy="89" r="2" fill="white"/>
+  <circle cx="122" cy="89" r="2" fill="white"/>
+  <!-- Hustle shades -->
+  <rect x="70" y="82" width="20" height="14" rx="3" fill="#000000df" stroke="#111" stroke-width="2"/>
+  <rect x="110" y="82" width="20" height="14" rx="3" fill="#000000df" stroke="#111" stroke-width="2"/>
+  <line x1="90" y1="89" x2="110" y2="89" stroke="#111" stroke-width="2"/>
+  <!-- Snout -->
+  <ellipse cx="100" cy="115" rx="12" ry="9" fill="#FAD7A0"/>
+  <circle cx="100" cy="115" r="3" fill="#333"/>
+  <!-- Smile -->
+  <path d="M90 125 Q100 132 110 125" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <!-- Hustler hoodie -->
+  <rect x="85.5" y="115" width="30" height="40" rx="5" fill="#073B4C"/>
+
+  <!-- Coin detail -->
+  <circle cx="100" cy="145" r="5" fill="#FFD166" stroke="#E09F3E" stroke-width="2"/>
+  <text x="97.5" y="148" font-size="8" fill="#073B4C">$</text>
+</svg>

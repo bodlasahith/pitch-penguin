@@ -1,0 +1,29 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="100" cy="110" r="50" fill="#06D6A0"/>
+  <!-- Ears -->
+  <polygon points="60,105 45,92 55,120" fill="#05B68A"/>
+  <polygon points="140,105 155,92 145,120" fill="#05B68A"/>
+  <!-- Eyes -->
+  <ellipse cx="85" cy="100" rx="10" ry="12" fill="white"/>
+  <ellipse cx="115" cy="100" rx="10" ry="12" fill="white"/>
+  <circle cx="85" cy="102" r="5" fill="black"/>
+  <circle cx="115" cy="102" r="5" fill="black"/>
+  <circle cx="87" cy="99" r="2" fill="white"/>
+  <circle cx="117" cy="99" r="2" fill="white"/>
+  <!-- Eyebrows -->
+  <path d="M74 90 Q85 85 96 90" stroke="#047A5D" stroke-width="3" fill="none"/>
+  <path d="M104 90 Q115 85 126 90" stroke="#047A5D" stroke-width="3" fill="none"/>
+  <!-- Smirk -->
+  <path d="M85 125 Q100 140 115 125" stroke="black" stroke-width="4" fill="none"/>
+  <circle cx="100" cy="120" r="3" fill="black"/>
+  <!-- Idea bulb -->
+  <circle cx="100" cy="50" r="25" fill="#FFD166"/>
+  <rect x="95" y="70" width="10" height="20" fill="#FFD166"/>
+  <circle cx="90" cy="45" r="4" fill="white" opacity="0.7"/>
+  <circle cx="110" cy="55" r="3" fill="white" opacity="0.6"/>
+  <!-- Spark lines -->
+  <line x1="100" y1="20" x2="100" y2="30" stroke="#FFD166" stroke-width="3"/>
+  <line x1="75" y1="30" x2="83" y2="38" stroke="#FFD166" stroke-width="3"/>
+  <line x1="125" y1="30" x2="117" y2="38" stroke="#FFD166" stroke-width="3"/>
+</svg>
+

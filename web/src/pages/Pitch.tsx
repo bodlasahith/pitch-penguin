@@ -1,89 +1,644 @@
+import type { CSSProperties, PointerEvent } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { getMascotImage } from '../utils/mascots'
+
+type GameResponse = {
+  ok: boolean
+  room?: {
+    walrus: string
+    selectedAsk: string | null
+    pitchTimerSeconds: number
+    robotVoiceEnabled: boolean
+    pitchEndsAt?: number | null
+    phase?: string
+  }
+  mustHavesByPlayer?: Record<string, string[]>
+  surpriseByPlayer?: Record<string, string | null>
+  pitchStatusByPlayer?: Record<string, string>
+  players?: {
+    name: string
+    isHost: boolean
+    mascot?: string
+  }[]
+}
+
+type PitchesResponse = {
+  ok: boolean
+  pitches: Array<{ player: string; summary: string; title: string; aiGenerated?: boolean; sketchData?: string | null }>
+}
+
 export default function Pitch() {
+  const { code } = useParams()
+  const navigate = useNavigate()
+  const [selectedAsk, setSelectedAsk] = useState<string | null>(null)
+  const [mustHaves, setMustHaves] = useState<string[]>([])
+  const [surprise, setSurprise] = useState<string | null>(null)
+  const [robotVoiceEnabled, setRobotVoiceEnabled] = useState(true)
+  const [pitchStatuses, setPitchStatuses] = useState<Record<string, string>>({})
+  const [walrus, setWalrus] = useState('')
+  const [pitchText, setPitchText] = useState('')
+  const [pitchTitle, setPitchTitle] = useState('')
+  const [selectedMustHaves, setSelectedMustHaves] = useState<string[]>([])
+  const [voice, setVoice] = useState('Neon Announcer')
+  const [pitchEndsAt, setPitchEndsAt] = useState<number | null>(null)
+  const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+  const [generatedPitch, setGeneratedPitch] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [usedAIGeneration, setUsedAIGeneration] = useState(false)
+  const [aiAttempted, setAiAttempted] = useState(false)
+  const [autoSubmitted, setAutoSubmitted] = useState(false)
+  const [readyError, setReadyError] = useState('')
+  const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
+  const canvasWrapRef = useRef<HTMLDivElement | null>(null)
+  const isDrawingRef = useRef(false)
+  const [brushColor, setBrushColor] = useState('#2e2a27')
+  const [brushSize, setBrushSize] = useState(6)
+  const [isEraser, setIsEraser] = useState(false)
+
+  const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
+  const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
+  const aiLockKey = roomCode && playerName ? `bw:ai-lock:${roomCode}:${playerName}` : ''
+  const colorOptions = ['#2e2a27', '#d24b4b', '#3e7c3e', '#2d6cdf', '#f5b544', '#7c4bd2']
+  const backgroundColor = { r: 255, g: 250, b: 241 }
+
+  const load = async () => {
+    if (!roomCode) {
+      return
+    }
+    if (aiLockKey && localStorage.getItem(aiLockKey) === 'true') {
+      setAiAttempted(true)
+    }
+    const [gameResponse, pitchesResponse] = await Promise.all([
+      fetch(`/api/room/${roomCode}/game`),
+      fetch(`/api/room/${roomCode}/pitches`)
+    ])
+    const data = (await gameResponse.json()) as GameResponse
+    if (!data.ok || !data.room) {
+      return
+    }
+    if (data.room.phase && data.room.phase !== 'pitch') {
+      const nextPath =
+        data.room.phase === 'deal'
+          ? '/deal'
+          : data.room.phase === 'reveal'
+            ? '/reveal'
+            : data.room.phase === 'results'
+              ? '/results'
+              : '/pitch'
+      navigate(nextPath, { replace: true })
+      return
+    }
+    setWalrus(data.room.walrus)
+    setSelectedAsk(data.room.selectedAsk)
+    setRobotVoiceEnabled(data.room.robotVoiceEnabled)
+    setPitchEndsAt(data.room.pitchEndsAt ?? null)
+    setPitchStatuses(data.pitchStatusByPlayer ?? {})
+    if (playerName) {
+      setMustHaves(data.mustHavesByPlayer?.[playerName] ?? [])
+      setSurprise(data.surpriseByPlayer?.[playerName] ?? null)
+    }
+    if (data.players) {
+      const nextMascots: Record<string, string> = {}
+      data.players.forEach((player) => {
+        if (player.mascot) {
+          nextMascots[player.name] = player.mascot
+        }
+      })
+      setPlayerMascots(nextMascots)
+    }
+    if (pitchesResponse.ok) {
+      const pitchData = (await pitchesResponse.json()) as PitchesResponse
+      if (pitchData.ok && playerName) {
+        const existing = pitchData.pitches.find((pitch) => pitch.player === playerName)
+        if (existing?.aiGenerated) {
+          setUsedAIGeneration(true)
+          setAiAttempted(true)
+        }
+      }
+    }
+  }
+
+  useEffect(() => {
+    let refreshId: number | undefined
+    let timerId: number | undefined
+    void load()
+    refreshId = window.setInterval(load, 4000)
+    timerId = window.setInterval(() => {
+      if (!pitchEndsAt) {
+        setSecondsLeft(null)
+        return
+      }
+      const remaining = Math.max(0, Math.ceil((pitchEndsAt - Date.now()) / 1000))
+      setSecondsLeft(remaining)
+    }, 1000)
+    return () => {
+      if (refreshId) {
+        window.clearInterval(refreshId)
+      }
+      if (timerId) {
+        window.clearInterval(timerId)
+      }
+    }
+  }, [pitchEndsAt, navigate])
+
+  const handleStatus = async (status: 'drafting' | 'ready') => {
+    if (!roomCode || !playerName) {
+      return
+    }
+    if (pitchStatuses[playerName] === 'ready') {
+      return
+    }
+    if (status === 'ready') {
+      if (!pitchTitle.trim() || !pitchText.trim() || selectedMustHaves.length === 0) {
+        setReadyError('Add a title, a pitch summary, and at least one MUST HAVE before marking ready.')
+        return
+      }
+    }
+    setReadyError('')
+    const sketchData = getSketchData()
+    await fetch(`/api/room/${roomCode}/pitch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerName,
+        title: pitchTitle || 'Untitled',
+        summary: pitchText,
+        usedMustHaves: selectedMustHaves,
+        voice,
+        aiGenerated: usedAIGeneration,
+        sketchData,
+        status
+      })
+    })
+    await load()
+  }
+
+  const handleGeneratePitch = async () => {
+    if (aiAttempted || usedAIGeneration) {
+      return
+    }
+    if (!selectedAsk || selectedMustHaves.length === 0) {
+      alert('Select at least one MUST HAVE before generating a pitch.')
+      return
+    }
+    setAiAttempted(true)
+    if (aiLockKey) {
+      localStorage.setItem(aiLockKey, 'true')
+    }
+    setGenerating(true)
+    try {
+      // Simulate LLM generation (in production, call your backend service)
+      // const prompt = `Create a short, punchy pitch that answers: "${selectedAsk}". 
+      // Must include: ${selectedMustHaves.join(', ')}.
+      // ${surprise ? `Also include: ${surprise}` : ''}
+      // Keep it under 2 sentences.`
+
+      // Simulate API call
+      await new Promise((resolve) => setTimeout(resolve, 1500))
+
+      const mockPitches = [
+        `A wearable solar bracelet that syncs with your commute—charge your phone, reduce your carbon footprint, never miss a connection.`,
+        `The Spotify of sustainable transit: stream your route, swap rides, save the planet while you save time.`,
+        `Ritual meets reality: this waterproof smartwatch teaches daily habits that stick, whether you're on the go or going deep.`,
+      ]
+
+      const generated = mockPitches[Math.floor(Math.random() * mockPitches.length)]
+      setGeneratedPitch(generated)
+    } catch (err) {
+      alert('Failed to generate pitch. Try again.')
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const handleUseGeneratedPitch = () => {
+    if (!generatedPitch) return
+    setPitchText(generatedPitch)
+    setUsedAIGeneration(true)
+    if (aiLockKey) {
+      localStorage.setItem(aiLockKey, 'true')
+    }
+    setGeneratedPitch(null)
+  }
+
+  const isWalrus = walrus && playerName && walrus.toLowerCase() === playerName.toLowerCase()
+  const playerStatus = playerName ? pitchStatuses[playerName] : undefined
+  const isLocked = playerStatus === 'ready'
+  const mascotBadgeStyle: CSSProperties = {
+    width: '24px',
+    height: '24px',
+    borderRadius: '999px',
+    backgroundColor: 'rgba(59, 42, 21, 0.08)',
+    border: '1px solid rgba(59, 42, 21, 0.12)',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }
+  const allReady = Object.entries(pitchStatuses)
+    .filter(([name]) => name !== walrus)
+    .every(([, status]) => status === 'ready')
+
+  useEffect(() => {
+    if (isWalrus || isLocked || autoSubmitted) {
+      return
+    }
+    if (secondsLeft !== null && secondsLeft <= 0) {
+      setAutoSubmitted(true)
+      void handleStatus('ready')
+    }
+  }, [secondsLeft, isWalrus, isLocked, autoSubmitted])
+
+  const canvasBg = '#fffaf1'
+
+  const setupCanvas = () => {
+    const canvas = canvasRef.current
+    const wrap = canvasWrapRef.current
+    if (!canvas || !wrap) return
+    const rect = wrap.getBoundingClientRect()
+    const width = Math.max(260, Math.floor(rect.width))
+    const height = 260
+    const scale = window.devicePixelRatio || 1
+    canvas.width = width * scale
+    canvas.height = height * scale
+    canvas.style.width = `${width}px`
+    canvas.style.height = `${height}px`
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    ctx.setTransform(scale, 0, 0, scale, 0, 0)
+    ctx.fillStyle = canvasBg
+    ctx.fillRect(0, 0, width, height)
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+  }
+
+  useEffect(() => {
+    setupCanvas()
+    const handleResize = () => setupCanvas()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  const getCanvasPoint = (event: PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (!canvas) return { x: 0, y: 0 }
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
+    }
+  }
+
+  const startDraw = (event: PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    isDrawingRef.current = true
+    canvas.setPointerCapture(event.pointerId)
+    const { x, y } = getCanvasPoint(event)
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+  }
+
+  const draw = (event: PointerEvent<HTMLCanvasElement>) => {
+    if (!isDrawingRef.current) return
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    const { x, y } = getCanvasPoint(event)
+    ctx.strokeStyle = isEraser ? canvasBg : brushColor
+    ctx.lineWidth = brushSize
+    ctx.lineTo(x, y)
+    ctx.stroke()
+  }
+
+  const endDraw = (event: PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current
+    if (canvas) {
+      canvas.releasePointerCapture(event.pointerId)
+    }
+    isDrawingRef.current = false
+  }
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return
+    const width = canvas.clientWidth
+    const height = canvas.clientHeight
+    ctx.clearRect(0, 0, width, height)
+    ctx.fillStyle = canvasBg
+    ctx.fillRect(0, 0, width, height)
+  }
+
+  const getSketchData = () => {
+    const canvas = canvasRef.current
+    const ctx = canvas?.getContext('2d')
+    if (!canvas || !ctx) return null
+    const { width, height } = canvas
+    if (width === 0 || height === 0) return null
+    const pixels = ctx.getImageData(0, 0, width, height).data
+    let hasInk = false
+    for (let i = 0; i < pixels.length; i += 4) {
+      const r = pixels[i]
+      const g = pixels[i + 1]
+      const b = pixels[i + 2]
+      const a = pixels[i + 3]
+      if (a !== 0 && (r !== backgroundColor.r || g !== backgroundColor.g || b !== backgroundColor.b)) {
+        hasInk = true
+        break
+      }
+    }
+    if (!hasInk) return null
+    return canvas.toDataURL('image/png')
+  }
+
   return (
     <>
       <section className="page-header">
         <div>
-          <div className="eyebrow">Pitch lab</div>
-          <h1>Write your pitch</h1>
-          <p>Build the idea, then pick a robot to read it out loud.</p>
+          <div className="eyebrow">Pitch Lab</div>
+          <h1>{isWalrus ? 'Monitor Pitches' : 'Write Your Pitch'}</h1>
+          <p>
+            {isWalrus
+              ? 'Track player readiness and monitor the round timing.'
+              : 'Build your idea and choose a voice personality.'}
+          </p>
         </div>
         <div className="panel">
-          <h3>Time left</h3>
-          <div className="timer">01:12</div>
-          <p style={{ marginTop: '8px' }}>Voice: Neon Announcer</p>
+          <h3>Time Left</h3>
+          <div className="timer">
+            {secondsLeft !== null
+              ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
+              : '--:--'}
+          </div>
+          <p style={{ marginTop: '8px' }}>
+            {usedAIGeneration && '🤖 Using AI Generation'}
+          </p>
         </div>
       </section>
 
       <section className="split">
         <div className="panel">
-          <h3>Your pitch</h3>
-          <textarea
-            className="input textarea"
-            placeholder="Sell the dream. Highlight the MUST HAVEs."
-          />
-          <div style={{ marginTop: '14px' }}>
-            <strong>Select MUST HAVEs used (min 1)</strong>
-            <ul className="list" style={{ marginTop: '10px' }}>
-              <li>
-                <label>
-                  <input type="checkbox" /> Wearable component
-                </label>
-              </li>
-              <li>
-                <label>
-                  <input type="checkbox" /> Solar power
-                </label>
-              </li>
-              <li>
-                <label>
-                  <input type="checkbox" /> Public transit integration
-                </label>
-              </li>
-              <li>
-                <label>
-                  <input type="checkbox" /> Daily ritual
-                </label>
-              </li>
-            </ul>
-          </div>
-          <div className="footer-actions" style={{ marginTop: '16px' }}>
-            <button className="button">Preview voice</button>
-            <button className="button secondary">Save draft</button>
+          <h3>The ASK</h3>
+          <div className="card">
+            <strong>"{selectedAsk ?? 'Waiting for ASK...'}"</strong>
+            <span>Answer this problem with your pitch.</span>
           </div>
         </div>
         <div className="panel">
-          <h3>Robot voice</h3>
-          <select className="input">
-            <option>Neon Announcer</option>
-            <option>Calm Founder</option>
-            <option>Buzzword Bot</option>
-            <option>Wall Street Hype</option>
-          </select>
-          <div className="card" style={{ marginTop: '16px' }}>
-            <strong>Tip</strong>
-            <span>Short punchy sentences sound best on the voice reader.</span>
+          <h3>Player Status</h3>
+          <ul className="list">
+            {Object.entries(pitchStatuses)
+              .filter(([name]) => name !== walrus)
+              .map(([name, status]) => (
+                <li
+                  key={name}
+                  style={{
+                    color: status === 'ready' ? '#2d7c2d' : '#666',
+                    fontWeight: status === 'ready' ? 'bold' : 'normal',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}
+                >
+                  {playerMascots[name] && (
+                    <span style={mascotBadgeStyle}>
+                      <img
+                        src={getMascotImage(playerMascots[name]) ?? ''}
+                        alt=""
+                        style={{ width: '18px', height: '18px' }}
+                      />
+                    </span>
+                  )}
+                  <span>
+                    {name}: {status === 'ready' ? '✓ Ready' : 'Drafting...'}
+                  </span>
+                </li>
+              ))}
+          </ul>
+          {allReady && isWalrus && (
+            <p style={{ marginTop: '12px', color: '#2d7c2d' }}>
+              ✓ All players ready. Can advance to reveal phase.
+            </p>
+          )}
+        </div>
+      </section>
+
+      {!isWalrus && (
+        <section className="split">
+          <div className="panel">
+            <h3>Your Pitch</h3>
+            <input
+              className="input"
+              placeholder="Pitch title (e.g., 'TimeFlow')"
+              value={pitchTitle}
+              onChange={(event) => setPitchTitle(event.target.value)}
+              disabled={isLocked}
+              style={{ marginBottom: '10px' }}
+            />
+            <textarea
+              className="input textarea"
+              placeholder="Sell the dream. Highlight the MUST HAVEs and your solution."
+              value={pitchText}
+              onChange={(event) => setPitchText(event.target.value)}
+              disabled={isLocked}
+            />
+            {surprise && (
+              <div className="card" style={{ marginTop: '12px', backgroundColor: '#d4a574' }}>
+                <strong>⭐ Walrus Surprise</strong>
+                <span>{surprise}</span>
+              </div>
+            )}
+            <div style={{ marginTop: '14px' }}>
+              <strong>Select MUST HAVEs (use at least 1)</strong>
+              <ul className="list" style={{ marginTop: '8px' }}>
+                {mustHaves.map((card) => (
+                  <li key={card}>
+                    <label style={{ display: 'flex', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={selectedMustHaves.includes(card)}
+                        onChange={(event) => {
+                          const next = event.target.checked
+                            ? [...selectedMustHaves, card]
+                            : selectedMustHaves.filter((item) => item !== card)
+                          setSelectedMustHaves(next)
+                        }}
+                        disabled={isLocked}
+                        style={{ marginRight: '8px' }}
+                      />
+                      {card}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="footer-actions" style={{ marginTop: '16px' }}>
+              <button
+                className="button"
+                onClick={() => handleStatus('ready')}
+                disabled={isLocked}
+              >
+                Mark Ready
+              </button>
+            </div>
+            {readyError && (
+              <p style={{ marginTop: '10px', color: '#8c2d2a' }}>{readyError}</p>
+            )}
+            {isLocked && (
+              <p style={{ marginTop: '10px', color: '#2d7c2d' }}>
+                ✓ Submission locked. Waiting on the round to finish.
+              </p>
+            )}
           </div>
-        </div>
-      </section>
+          <div className="panel">
+            <h3>Voice Personality</h3>
+            <select
+              className="input"
+              disabled={!robotVoiceEnabled}
+              value={voice}
+              onChange={(event) => setVoice(event.target.value)}
+              style={{ marginBottom: '12px' }}
+            >
+              <option>Neon Announcer</option>
+              <option>Calm Founder</option>
+              <option>Buzzword Bot</option>
+              <option>Wall Street Hype</option>
+            </select>
+            <div className="card">
+              <strong>💡 Pro Tip</strong>
+              <span>Short punchy sentences sound better read aloud by robots.</span>
+            </div>
+            {!robotVoiceEnabled && (
+              <div className="card" style={{ marginTop: '12px' }}>
+                <strong>Voice disabled</strong>
+                <span>Host has disabled robot voice. Type your pitch anyway!</span>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
-      <section className="panel">
-        <h3>Sketch pad</h3>
-        <div className="canvas-placeholder">Drawing canvas goes here</div>
-      </section>
+      {!isWalrus && (
+        <section className="panel">
+          <h3>Running Out of Time?</h3>
+          <p>
+            Use AI to generate a quick pitch that matches the ASK and your MUST HAVEs. Note: Other
+            players can challenge AI-generated pitches. If challenged correctly, you lose 1 point.
+          </p>
+          {generatedPitch && (
+            <div className="card" style={{ marginTop: '12px', borderLeft: '4px solid #d4a574' }}>
+              <strong>Generated Pitch:</strong>
+              <span>"{generatedPitch}"</span>
+              <div className="footer-actions" style={{ marginTop: '12px' }}>
+                <button className="button" onClick={handleUseGeneratedPitch} disabled={isLocked}>
+                  Use This
+                </button>
+              </div>
+            </div>
+          )}
+          {!generatedPitch && (
+            <div className="footer-actions" style={{ marginTop: '12px' }}>
+              <button
+                className="button"
+                onClick={handleGeneratePitch}
+                disabled={
+                  generating ||
+                  selectedMustHaves.length === 0 ||
+                  aiAttempted ||
+                  usedAIGeneration ||
+                  isLocked
+                }
+              >
+                {generating
+                  ? 'Generating...'
+                  : aiAttempted || usedAIGeneration
+                    ? 'AI Pitch Used'
+                    : 'Generate AI Pitch'}
+              </button>
+            </div>
+          )}
+        </section>
+      )}
 
-      <section className="panel">
-        <h3>Pitch assist (later)</h3>
-        <p>
-          If you run out of time, you can request a quick AI-generated pitch
-          that follows the ASK + MUST HAVEs. Other players can challenge it
-          during reveal; a confirmed AI pitch loses 1 point and is disqualified
-          for the round.
-        </p>
-        <div className="footer-actions" style={{ marginTop: '16px' }}>
-          <button className="button secondary">Generate quick pitch</button>
-          <button className="button secondary">View challenge rules</button>
-        </div>
-      </section>
+      {!isWalrus && (
+        <section className="panel">
+          <h3>Sketch Pad</h3>
+          <p style={{ marginTop: '6px', fontSize: '0.9rem', color: '#666' }}>
+            Doodle a logo or diagram to sell your idea.
+          </p>
+          <div className="footer-actions" style={{ marginTop: '12px' }}>
+            {colorOptions.map((color) => (
+              <button
+                key={color}
+                type="button"
+                className="button secondary"
+                onClick={() => {
+                  setBrushColor(color)
+                  setIsEraser(false)
+                }}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: '999px',
+                  background: color,
+                  border: brushColor === color && !isEraser ? '2px solid #3b2a15' : '1px solid rgba(70, 60, 50, 0.2)',
+                  boxShadow: 'none',
+                  color: 'transparent',
+                  minWidth: '28px',
+                }}
+                aria-label={`Select color ${color}`}
+              >
+                ■
+              </button>
+            ))}
+            <button
+              type="button"
+              className={`button secondary${isEraser ? '' : ''}`}
+              onClick={() => setIsEraser((prev) => !prev)}
+              style={{ padding: '6px 12px' }}
+            >
+              {isEraser ? 'Eraser On' : 'Eraser'}
+            </button>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={clearCanvas}
+              style={{ padding: '6px 12px' }}
+            >
+              Clear
+            </button>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '0.85rem', color: '#6b6056' }}>Brush</span>
+              <input
+                type="range"
+                min={2}
+                max={18}
+                value={brushSize}
+                onChange={(event) => setBrushSize(Number(event.target.value))}
+              />
+            </label>
+          </div>
+          <div ref={canvasWrapRef} style={{ marginTop: '12px' }}>
+            <canvas
+              ref={canvasRef}
+              onPointerDown={startDraw}
+              onPointerMove={draw}
+              onPointerUp={endDraw}
+              onPointerLeave={endDraw}
+              style={{
+                borderRadius: '16px',
+                border: '1px dashed rgba(70, 60, 50, 0.35)',
+                background: '#fffaf1',
+                width: '100%',
+                height: '260px',
+                touchAction: 'none',
+              }}
+            />
+          </div>
+        </section>
+      )}
     </>
   )
 }

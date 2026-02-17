@@ -1,0 +1,23 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="100" cy="110" rx="50" ry="60" fill="#222"/>
+  <ellipse cx="100" cy="120" rx="30" ry="45" fill="white"/>
+  <!-- Eyes -->
+  <ellipse cx="85" cy="90" rx="7" ry="9" fill="white"/>
+  <ellipse cx="115" cy="90" rx="7" ry="9" fill="white"/>
+  <circle cx="85" cy="92" r="4" fill="#111"/>
+  <circle cx="115" cy="92" r="4" fill="#111"/>
+  <circle cx="87" cy="89" r="1.5" fill="white"/>
+  <circle cx="117" cy="89" r="1.5" fill="white"/>
+  <!-- Beak -->
+  <polygon points="100,100 92,110 108,110" fill="#F4A261"/>
+  <!-- Suit collar -->
+  <polygon points="85,140 100,155 115,140" fill="#111"/>
+  <!-- Tie -->
+  <rect x="80" y="150" width="40" height="10" fill="#FF6B6B"/>
+  <rect x="95" y="150" width="10" height="30" fill="#FF6B6B"/>
+  <circle cx="100" cy="165" r="3" fill="white"/>
+  <!-- Pocket badge -->
+  <rect x="110" y="135" width="10" height="8" rx="2" fill="#FFD166"/>
+  <circle cx="113" cy="139" r="1.5" fill="#EF476F"/>
+</svg>
+

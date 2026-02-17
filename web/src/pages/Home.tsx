@@ -86,6 +86,8 @@ export default function Home() {
         return
       }
       localStorage.setItem(`bw:player:${data.room.code}`, trimmedName)
+      localStorage.setItem('bw:lastRoom', data.room.code)
+      localStorage.setItem('bw:lastName', trimmedName)
       navigate(`/lobby/${data.room.code}`)
     } catch (err) {
       setRoomStatus('error')

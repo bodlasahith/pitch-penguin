@@ -1,0 +1,29 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="100" cy="110" rx="40" ry="55" fill="#F4A261"/>
+  <circle cx="100" cy="70" r="25" fill="#F4A261"/>
+  <!-- Ears -->
+  <polygon points="82,35 90,60 72,58" fill="#E9967A"/>
+  <polygon points="118,35 128,58 110,60" fill="#E9967A"/>
+  <!-- Eyes -->
+  <ellipse cx="90" cy="65" rx="5" ry="7" fill="white"/>
+  <ellipse cx="110" cy="65" rx="5" ry="7" fill="white"/>
+  <circle cx="90" cy="67" r="3" fill="#333"/>
+  <circle cx="110" cy="67" r="3" fill="#333"/>
+  <circle cx="92" cy="64" r="1.5" fill="white"/>
+  <circle cx="112" cy="64" r="1.5" fill="white"/>
+  <!-- Snout and smile -->
+  <ellipse cx="100" cy="82" rx="12" ry="9" fill="#F7C59F"/>
+  <circle cx="96" cy="82" r="2" fill="#333"/>
+  <circle cx="104" cy="82" r="2" fill="#333"/>
+  <path d="M94 88 Q100 92 106 88" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- Blush -->
+  <circle cx="80" cy="78" r="4" fill="#F28482" opacity="0.6"/>
+  <circle cx="120" cy="78" r="4" fill="#F28482" opacity="0.6"/>
+  <!-- Head tuft -->
+  <path d="M95 40 Q100 30 105 40" stroke="#D16E5B" stroke-width="3" fill="none"/>
+  <!-- Megaphone -->
+  <rect x="120" y="100" width="40" height="20" fill="#2A9D8F"/>
+  <polygon points="160,110 180,100 180,120" fill="#2A9D8F"/>
+  <circle cx="120" cy="110" r="4" fill="#1E7E74"/>
+</svg>
+

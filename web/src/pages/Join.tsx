@@ -7,6 +7,9 @@ export default function Join() {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [status, setStatus] = useState<'idle' | 'joining' | 'error'>('idle')
+  const lastRoom = localStorage.getItem('bw:lastRoom') ?? ''
+  const lastName = localStorage.getItem('bw:lastName') ?? ''
+  const [banner, setBanner] = useState('')
 
   const handleJoin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -21,6 +24,7 @@ export default function Join() {
       return
     }
     setError('')
+    setBanner('')
     try {
       setStatus('joining')
       const response = await fetch('/api/rooms/join', {
@@ -32,13 +36,48 @@ export default function Join() {
       if (!data.ok) {
         setStatus('error')
         setError(data.message ?? 'Unable to join that room.')
+        if (data.message === 'Room is full') {
+          setBanner('This room is full. Try another code.')
+        }
         return
       }
       localStorage.setItem(`bw:player:${trimmed}`, playerName)
+      localStorage.setItem('bw:lastRoom', trimmed)
+      localStorage.setItem('bw:lastName', playerName)
       navigate(`/lobby/${trimmed}`)
     } catch (err) {
       setStatus('error')
       setError('Unable to join that room.')
+    }
+  }
+
+  const handleQuickRejoin = async () => {
+    if (!lastRoom || !lastName) {
+      return
+    }
+    setError('')
+    setBanner('')
+    try {
+      setStatus('joining')
+      const response = await fetch('/api/rooms/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: lastRoom, playerName: lastName })
+      })
+      const data = (await response.json()) as { ok: boolean; message?: string }
+      if (!data.ok && data.message !== 'Name already taken') {
+        setStatus('error')
+        setError(data.message ?? 'Unable to rejoin that room.')
+        if (data.message === 'Room is full') {
+          setBanner('This room is full. Try another code.')
+        }
+        return
+      }
+      localStorage.setItem(`bw:player:${lastRoom}`, lastName)
+      navigate(`/lobby/${lastRoom}`)
+    } catch (err) {
+      setStatus('error')
+      setError('Unable to rejoin that room.')
     }
   }
 
@@ -56,8 +95,28 @@ export default function Join() {
         </div>
       </section>
 
+      {lastRoom && lastName && (
+        <section className="panel">
+          <h3>Quick rejoin</h3>
+          <p>
+            Jump back into {lastRoom} as {lastName}.
+          </p>
+          <div className="footer-actions" style={{ marginTop: '12px' }}>
+            <button
+              className="button"
+              type="button"
+              onClick={handleQuickRejoin}
+              disabled={status === 'joining'}
+            >
+              Rejoin room
+            </button>
+          </div>
+        </section>
+      )}
+
       <section className="panel">
         <form onSubmit={handleJoin}>
+          {banner && <div className="banner warning">{banner}</div>}
           <label htmlFor="player-name">
             <strong>Player name</strong>
           </label>

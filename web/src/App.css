@@ -241,6 +241,134 @@
   flex-wrap: wrap;
 }
 
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 16, 12, 0.55);
+  display: grid;
+  place-items: center;
+  z-index: 50;
+  padding: 20px;
+}
+
+.modal {
+  width: min(440px, 92vw);
+  background: #fffdf7;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 22px 40px rgba(10, 8, 6, 0.2);
+  border: 1px solid rgba(20, 20, 20, 0.08);
+}
+
+.modal h3 {
+  margin: 0 0 8px;
+}
+
+.phase-loading {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at top, rgba(255, 241, 210, 0.9), rgba(255, 245, 234, 0.95));
+  z-index: 60;
+  animation: fadeIn 0.3s ease both;
+}
+
+.phase-card {
+  position: relative;
+  width: min(520px, 92vw);
+  padding: 32px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, #fff5dc, #ffe9f0);
+  box-shadow: 0 24px 50px rgba(30, 20, 10, 0.2);
+  border: 1px solid rgba(140, 100, 60, 0.18);
+  overflow: hidden;
+}
+
+.phase-orb {
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 214, 153, 0.9), rgba(245, 181, 68, 0.2));
+  animation: floatOrb 4s ease-in-out infinite;
+}
+
+.phase-spark {
+  position: absolute;
+  bottom: -30px;
+  left: -30px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(170, 220, 255, 0.9), rgba(120, 190, 255, 0.2));
+  animation: floatOrb 3.6s ease-in-out infinite reverse;
+}
+
+.phase-lines {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.phase-lines span {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #3c332b;
+  opacity: 0.2;
+  animation: pulseDots 1.2s ease-in-out infinite;
+}
+
+.phase-lines span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.phase-lines span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.phase-text h2 {
+  margin: 8px 0 6px;
+  font-size: clamp(1.6rem, 2.6vw, 2.2rem);
+}
+
+.phase-text p {
+  margin: 0;
+  color: #5a5047;
+}
+
+.banner {
+  border-radius: 14px;
+  padding: 10px 14px;
+  font-weight: 600;
+  background: #fff4d8;
+  color: #5d4630;
+  border: 1px solid rgba(93, 70, 48, 0.18);
+}
+
+.banner.warning {
+  background: #ffe4e0;
+  color: #8c2d2a;
+  border-color: rgba(140, 45, 42, 0.18);
+}
+
+.badge {
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #fff5dc;
+  color: #5d4630;
+  border: 1px solid rgba(93, 70, 48, 0.18);
+}
+
 @keyframes rise {
   from {
     opacity: 0;
@@ -249,5 +377,36 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes floatOrb {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(10px) scale(1.03);
+  }
+}
+
+@keyframes pulseDots {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateY(-6px);
+    opacity: 0.7;
   }
 }

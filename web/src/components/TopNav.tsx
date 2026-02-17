@@ -1,16 +1,20 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 
 const links = [
   { to: '/', label: 'Home' },
-  { to: '/lobby', label: 'Lobby' },
-  { to: '/deal', label: 'Deal' },
-  { to: '/pitch', label: 'Pitch' },
-  { to: '/reveal', label: 'Reveal' },
-  { to: '/vote', label: 'Vote' },
-  { to: '/results', label: 'Results' }
+  { to: '/join', label: 'Join' }
 ]
 
 export default function TopNav() {
+  const location = useLocation()
+  const hideNav =
+    location.pathname.startsWith('/lobby') ||
+    location.pathname.startsWith('/deal') ||
+    location.pathname.startsWith('/pitch') ||
+    location.pathname.startsWith('/reveal') ||
+    location.pathname.startsWith('/vote') ||
+    location.pathname.startsWith('/results')
+
   return (
     <header className="top-nav">
       <div className="brand">
@@ -20,19 +24,21 @@ export default function TopNav() {
           <span>Pitch night wireframes</span>
         </div>
       </div>
-      <nav className="nav-links">
-        {links.map((link) => (
-          <NavLink
-            key={link.to}
-            to={link.to}
-            className={({ isActive }) =>
-              isActive ? 'nav-link active' : 'nav-link'
-            }
-          >
-            {link.label}
-          </NavLink>
-        ))}
-      </nav>
+      {!hideNav && (
+        <nav className="nav-links">
+          {links.map((link) => (
+            <NavLink
+              key={link.to}
+              to={link.to}
+              className={({ isActive }) =>
+                isActive ? 'nav-link active' : 'nav-link'
+              }
+            >
+              {link.label}
+            </NavLink>
+          ))}
+        </nav>
+      )}
     </header>
   )
 }
