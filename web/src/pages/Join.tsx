@@ -66,6 +66,11 @@ export default function Join() {
       })
       const data = (await response.json()) as { ok: boolean; message?: string }
       if (!data.ok && data.message !== 'Name already taken') {
+        // Room not found (expired) or other error - clear stale room from localStorage
+        if (data.message === 'Room not found') {
+          localStorage.removeItem('bw:lastRoom')
+          localStorage.removeItem('bw:lastName')
+        }
         setStatus('error')
         setError(data.message ?? 'Unable to rejoin that room.')
         if (data.message === 'Room is full') {

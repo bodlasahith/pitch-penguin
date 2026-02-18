@@ -50,6 +50,7 @@ export default function Pitch() {
   const [autoSubmitted, setAutoSubmitted] = useState(false)
   const [readyError, setReadyError] = useState('')
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
+  const [aiWarning, setAiWarning] = useState('')
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const canvasWrapRef = useRef<HTMLDivElement | null>(null)
   const isDrawingRef = useRef(false)
@@ -179,33 +180,35 @@ export default function Pitch() {
     if (aiAttempted || usedAIGeneration) {
       return
     }
-    if (!selectedAsk || selectedMustHaves.length === 0) {
-      alert('Select at least one MUST HAVE before generating a pitch.')
+    if (selectedMustHaves.length === 0) {
+      setAiWarning('No MUST HAVEs selected. Using AI will mark you as an AI user—other players can challenge this.')
+      console.log('AI generation warning: no MUST HAVEs selected')
       return
     }
+    setAiWarning('')
     setAiAttempted(true)
     if (aiLockKey) {
       localStorage.setItem(aiLockKey, 'true')
     }
     setGenerating(true)
     try {
-      // Simulate LLM generation (in production, call your backend service)
-      // const prompt = `Create a short, punchy pitch that answers: "${selectedAsk}". 
-      // Must include: ${selectedMustHaves.join(', ')}.
-      // ${surprise ? `Also include: ${surprise}` : ''}
-      // Keep it under 2 sentences.`
-
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1500))
-
-      const mockPitches = [
-        `A wearable solar bracelet that syncs with your commute—charge your phone, reduce your carbon footprint, never miss a connection.`,
-        `The Spotify of sustainable transit: stream your route, swap rides, save the planet while you save time.`,
-        `Ritual meets reality: this waterproof smartwatch teaches daily habits that stick, whether you're on the go or going deep.`,
-      ]
-
-      const generated = mockPitches[Math.floor(Math.random() * mockPitches.length)]
-      setGeneratedPitch(generated)
+      const response = await fetch(`/api/room/${roomCode}/generate-pitch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ask: selectedAsk,
+          mustHaves: selectedMustHaves.length > 0 ? selectedMustHaves : [],
+          surprise: surprise ?? null
+        })
+      })
+      const data = (await response.json()) as { ok: boolean; pitch?: string; message?: string }
+      if (!data.ok || !data.pitch) {
+        alert(data.message ?? 'Failed to generate pitch. Try again.')
+        return
+      }
+      setGeneratedPitch(data.pitch)
+      // Mark as AI user immediately upon successful generation
+      setUsedAIGeneration(true)
     } catch (err) {
       alert('Failed to generate pitch. Try again.')
     } finally {
@@ -465,6 +468,9 @@ export default function Pitch() {
                             ? [...selectedMustHaves, card]
                             : selectedMustHaves.filter((item) => item !== card)
                           setSelectedMustHaves(next)
+                          if (next.length > 0) {
+                            setAiWarning('')
+                          }
                         }}
                         disabled={isLocked}
                         style={{ marginRight: '8px' }}
@@ -546,7 +552,6 @@ export default function Pitch() {
                 onClick={handleGeneratePitch}
                 disabled={
                   generating ||
-                  selectedMustHaves.length === 0 ||
                   aiAttempted ||
                   usedAIGeneration ||
                   isLocked
@@ -559,6 +564,9 @@ export default function Pitch() {
                     : 'Generate AI Pitch'}
               </button>
             </div>
+          )}
+          {aiWarning && (
+            <p style={{ marginTop: '10px', color: '#8c2d2a' }}>{aiWarning}</p>
           )}
         </section>
       )}

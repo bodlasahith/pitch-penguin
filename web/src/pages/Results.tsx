@@ -23,11 +23,6 @@ type GameResponse = {
   players?: Array<{ name: string; isHost: boolean; mascot?: string }>
 }
 
-type RestartResponse = {
-  ok: boolean
-  message?: string
-}
-
 type LastWinner = {
   player: string
   pitchId: string
@@ -45,7 +40,6 @@ export default function Results() {
   const [gameWinner, setGameWinner] = useState<string | null>(null)
   const [round, setRound] = useState(0)
   const [isHost, setIsHost] = useState(false)
-  const [restarting, setRestarting] = useState(false)
   const [lastWinner, setLastWinner] = useState<LastWinner | null>(null)
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
 
@@ -88,26 +82,6 @@ export default function Results() {
     return () => window.clearInterval(interval)
   }, [roomCode, playerName])
 
-  const handleRestart = async () => {
-    if (!roomCode || !isHost) return
-
-    try {
-      setRestarting(true)
-      const response = await fetch(`/api/room/${roomCode}/restart`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-      })
-      const data = (await response.json()) as RestartResponse
-      if (data.ok) {
-        // Navigate to lobby to start new game
-        navigate(`/lobby/${roomCode}`)
-      }
-    } catch (err) {
-      console.error(err)
-      setRestarting(false)
-    }
-  }
-
   const handleLeave = () => {
     navigate(`/`)
   }
@@ -117,13 +91,21 @@ export default function Results() {
       return
     }
     try {
-      await fetch(`/api/room/${roomCode}/advance-round`, {
+      const response = await fetch(`/api/room/${roomCode}/advance-round`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
       })
-      navigate('/deal')
+      const data = (await response.json()) as { ok?: boolean; phase?: string }
+      if (data.ok || data.phase) {
+        // Small delay to let server state propagate
+        await new Promise(resolve => setTimeout(resolve, 500))
+        navigate(`/deal/${roomCode}`)
+      } else {
+        console.error('Failed to advance round:', data)
+      }
     } catch (err) {
-      console.error(err)
+      console.error('Error advancing round:', err)
     }
   }
 
@@ -325,13 +307,6 @@ export default function Results() {
                   Start Next Round
                 </button>
               )}
-              <button
-                className="button"
-                onClick={handleRestart}
-                disabled={restarting}
-              >
-                {restarting ? 'Restarting...' : 'Restart Game'}
-              </button>
               <button className="button secondary" onClick={() => navigate(`/lobby/${roomCode}`)}>
                 Back to Lobby
               </button>

@@ -22,10 +22,15 @@ function App() {
       <Route path="/join" element={withLayout(<Join />)} />
       <Route path="/lobby/:code" element={withLayout(<Lobby />)} />
       <Route path="/deal" element={withLayout(<Deal />)} />
+      <Route path="/deal/:code" element={withLayout(<Deal />)} />
       <Route path="/pitch" element={withLayout(<Pitch />)} />
+      <Route path="/pitch/:code" element={withLayout(<Pitch />)} />
       <Route path="/reveal" element={withLayout(<Reveal />)} />
+      <Route path="/reveal/:code" element={withLayout(<Reveal />)} />
       <Route path="/vote" element={withLayout(<Vote />)} />
+      <Route path="/vote/:code" element={withLayout(<Vote />)} />
       <Route path="/results" element={withLayout(<Results />)} />
+      <Route path="/results/:code" element={withLayout(<Results />)} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

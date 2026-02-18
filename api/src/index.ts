@@ -1,4 +1,11 @@
+import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import Fastify from "fastify";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 type Player = {
   name: string;
@@ -1022,6 +1029,93 @@ server.post("/api/room/:code/pitch", async (request) => {
     ok: true,
     pitch,
   };
+});
+
+server.post("/api/room/:code/generate-pitch", async (request) => {
+  const { code } = request.params as { code: string };
+  const body = request.body as {
+    ask: string;
+    mustHaves: string[];
+    surprise?: string | null;
+  };
+
+  const { ask, mustHaves, surprise } = body;
+
+  if (!ask || !mustHaves || mustHaves.length === 0) {
+    return {
+      ok: false,
+      message: "Ask and at least one MUST HAVE required",
+    };
+  }
+
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return {
+      ok: false,
+      message: "API not configured",
+    };
+  }
+
+  try {
+    const mustHavesText = mustHaves.join(", ");
+    const surpriseText = surprise ? `Also incorporate this element: "${surprise}".` : "";
+
+    const prompt = `Create a short, punchy elevator pitch (2-3 sentences max) that:
+1. Answers this problem/question: "${ask}"
+2. Includes these required elements: ${mustHavesText}
+${surpriseText}
+
+Keep it exciting, founder-friendly, and ready to be read aloud. No fluff or disclaimers.`;
+
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+        temperature: 0.7,
+        max_tokens: 200,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = (await response.json()) as { error?: { message?: string } };
+      console.error("Groq API error:", errorData);
+      return {
+        ok: false,
+        message: errorData.error?.message ?? "Failed to generate pitch",
+      };
+    }
+
+    const data = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const generatedText = data.choices?.[0]?.message?.content?.trim() ?? "";
+
+    if (!generatedText) {
+      return {
+        ok: false,
+        message: "No pitch generated",
+      };
+    }
+
+    return {
+      ok: true,
+      pitch: generatedText,
+    };
+  } catch (err) {
+    console.error("Error calling Groq API:", err);
+    return {
+      ok: false,
+      message: "Failed to generate pitch",
+    };
+  }
 });
 
 server.get("/api/room/:code/pitches", async (request) => {
