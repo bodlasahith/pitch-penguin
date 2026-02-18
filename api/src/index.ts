@@ -75,13 +75,13 @@ type RoomPlayer = {
 
 type Room = {
   code: string;
-  status: "lobby" | "deal" | "pitch" | "reveal" | "vote" | "results";
+  status: "lobby" | "deal" | "pitch" | "reveal" | "vote" | "results" | "final-round";
   players: RoomPlayer[];
   createdAt: string;
   lastActiveAt: number;
 };
 
-type GamePhase = "lobby" | "deal" | "pitch" | "reveal" | "vote" | "results";
+type GamePhase = "lobby" | "deal" | "pitch" | "reveal" | "vote" | "results" | "final-round";
 
 type PlayerPitchStatus = "pending" | "drafting" | "ready";
 
@@ -111,6 +111,10 @@ type RoomGameState = {
   disqualifiedPlayers: Set<string>;
   playerScores: Record<string, number>;
   gameWinner: string | null;
+  gameWinners: string[];
+  finalRoundPlayers: string[];
+  finalRoundRankings: Record<string, string[]>;
+  judgeViewedPitches: Record<string, Set<string>>;
 };
 
 const server = Fastify({
@@ -122,9 +126,11 @@ const RULES = [
   "Walrus reads the ASK card aloud (or a narrator voice reads it).",
   "Each player draws 4 MUST HAVEs and must use at least 1.",
   "One random non-Walrus player gets a secret Walrus Surprise.",
-  "If the Walrus Surprise player wins, they earn 2 points instead of 1.",
-  "Players pitch on a timer and may add a quick sketch.",
-  "If a pitch is AI-generated, a correct challenge disqualifies them and costs 1 point; a wrong challenge disqualifies the accuser.",
+  "The player with the best pitch wins $100 and the round.",
+  "Each extra MUST HAVE used adds a $25 bonus when you win.",
+  "If the Walrus Surprise player wins, they earn 2 $100 bills instead of 1.",
+  "Players write a pitch on a timer and may add a quick sketch.",
+  "If a pitch is AI-generated, a correct challenge disqualifies them and costs $100; a wrong challenge disqualifies the accuser.",
 ];
 
 const rooms = new Map<string, Room>();
@@ -134,31 +140,344 @@ const ROOM_CAPACITY = 8;
 const EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
 
 const ASK_DECK = [
-  "Urban commuters are exhausted. Pitch a product that makes their mornings easier.",
-  "Remote teams feel disconnected. Pitch a product that restores trust.",
-  "Parents are drowning in logistics. Pitch a product that buys them time.",
-  "Local artists can't monetize. Pitch a product that funds their work.",
-  "Side hustlers struggle with consistency. Pitch a product that keeps them on track.",
+  "It sucks when you stub your toe. Fix it. 🦶💥",
+  "Your socks keep vanishing in the laundry void. Stop the chaos. 🧦🕳️",
+  "Your coffee gets cold in 30 seconds. Save the vibes. ☕️❄️",
+  "Your cat schedules meetings on your keyboard. Negotiate peace. 🐱⌨️",
+  "You can't find your keys... again. Rescue them. 🔑🕵️",
+  "Popcorn always burns at the worst moment. Prevent tragedy. 🍿🔥",
+  "Your phone slides off the couch in slow motion. Catch it. 📱🛋️",
+  "You keep forgetting why you walked into the room. Build a memory trail. 🚪🧠",
+  "Your pizza arrives lukewarm. Deliver peak heat. 🍕🌋",
+  "Your umbrella flips inside out every storm. Make it unflippable. ☔️💨",
+  "You step on LEGO in the dark. Provide safety. 🧱🌙",
+  "Your earbuds tangle instantly. Untangle destiny. 🎧🪢",
+  "You spill cereal while refilling the bowl. Fix the pour. 🥣🌪️",
+  "Your dog hides the TV remote daily. Track the bandit. 🐶📺",
+  "Your ice cream melts before the first bite. Save dessert. 🍦⏱️",
+  "Your reusable water bottle smells vaguely suspicious. Restore purity. 🚰🤨",
+  "Your fitted sheet launches itself off the mattress nightly. Secure it. 🛏️🚀",
+  "You never know which Tupperware lid fits. End the mismatch. 🥡🔄",
+  "Your autocorrect sabotages your reputation. Regain control. 📱😵",
+  "Your hair looks perfect before leaving, chaotic after. Lock it in. 💇💨",
+  "Your microwave timer is emotionally inconsistent. Stabilize it. ⏲️🧠",
+  "Your neighbors are mysteriously loud at all times. Negotiate peace. 🏘️🔊",
+  "Your reusable tote explodes at peak grocery load. Reinforce it. 🛍️💥",
+  "Your bookmarks are lies. You never return to wear you left off. Fix your reading destiny. 📚😔",
+  "Your smoothie separates instantly. Preserve the blend. 🥤⚖️",
+  "Your calendar double-books you constantly. Reclaim time. 📆⚔️",
+  "Your candles burn unevenly. Restore symmetry. 🕯️📐",
+  "Your laptop dies at 19%. Expose the truth. 💻🔋",
+  "Your hoodie is never the right temperature. Achieve thermal harmony. 🧥🌡️",
+  "Your snacks disappear faster than expected. Investigate. 🍪🕵️",
+  "Your backpack zipper betrays you mid-commute. Reinforce trust. 🎒",
+  "Your jeans zipper has a 50% chance of clipping your member. Prevent unbearable pain. 👖🪤",
+  "Paper straws are great but dissolve all the time. Prevent annoyance. 🥤",
+  "You always blink in group photos. Guarantee perfection. 📸",
+  "Your leftovers explode in the microwave. Contain chaos. 💥",
+  "You can never find the right end of the blanket. Find it first. 🛌",
+  "Your car keys hide specifically when you're late. Solve urgency. 🚗",
+  "Your smoothie lid leaks immediately. Seal destiny. 🥤",
+  "Your plants act like toddlers that adamantly refuse water. Find out how to keep them alive. 🌿",
+  "Your reusable bags accumulate infinitely. Contain expansion. 🛍️",
+  "Your pizza toppings slide off. Stabilize structure. 🍕",
+  "Your shoelaces untie mid-stride. Lock them down. 👟",
+  "Your iced drink sweats everywhere. Eliminate condensation. 🧊",
+  "Your bed is too hot or too cold. Optimize comfort. 🌡️",
+  "Your headphones vanish inside your bag. Track audio assets. 🎧",
+  "Your pen works only when shaken aggressively. Stabilize ink. 🖊️",
+  "Your candles tunnel instead of burn evenly. Fix combustion. 🕯️",
+  "The mailman stands outside your window at midnight ominously. Assess the situation. 📬",
+  "Your browser auto-fills wrong names. Prevent embarrassment. 🌐",
+  "Your reusable bottle leaks in bags only. Prevent betrayal. 🚰",
+  "Your calendar reminders feel passive aggressive. Humanize alerts. 📆",
+  "Your house echo is awkward during silence. Fix acoustics. 🏠",
+  "Your shoes squeak in serious settings. Silence them. 👞",
+  "Your alarm snooze button wins every time. Reclaim discipline. ⏰",
+  "Your sunglasses vanish on sunny days. Secure visibility. 🕶️",
+  "Your phone storage is always full. Expand reality. 📱",
+  "Your hoodie pocket collects mysterious crumbs. Contain debris. 🍪",
+  "Your keyboard crumbs are thriving. Clean ecosystem. ⌨️",
+  "Your thermostat lies. Reveal truth. 🌡️",
+  "Your reusable containers stain forever. Preserve clarity. 🥡",
+  "Your shower curtain attacks you. Establish boundaries. 🚿",
+  "Your snacks crumble at first bite. Preserve integrity. 🍫",
+  "Your delivery driver cannot find your house. Improve navigation. 🏠",
+  "Your fridge smells different every week. Stabilize freshness. 🧊",
+  "Your couch swallows objects. Recover them. 🛋️",
+  "Your ceiling fan is either hurricane or nothing. Balance airflow. 🌪️",
+  "Your roommates eat your leftovers. Determine a solution. 🥡",
 ];
 
 const MUST_HAVE_DECK = [
-  "Must include a wearable component.",
-  "Must run on solar power.",
-  "Must integrate with public transit.",
-  "Must include a daily ritual.",
-  "Must include a subscription tier.",
-  "Must work offline.",
-  "Must have a social or community element.",
-  "Must include a physical product component.",
-  "Must include a safety feature.",
-  "Must be voice-controlled.",
+  "Must involve an octopus somehow. 🐙",
+  "Must include at least one tiny hat. 🎩",
+  "Must run on solar power. ☀️",
+  "Must include a dramatic sound effect button. 🔊",
+  "Must have a physical product component. 📦",
+  "Must be wearable in a ridiculous way. 👕",
+  "Must include a snack compartment. 🍿",
+  "Must involve glitter (responsibly). ✨",
+  "Must be powered by a crank or wind-up. 🔧",
+  "Must include a daily ritual. 📅",
+  "Must have a safety feature. 🛡️",
+  "Must be voice-controlled. 🎙️",
+  "Must work offline. 📴",
+  "Must include a pet mode. 🐾",
+  "Must include a subscription tier. 💳",
+  "Must include a tiny parade. 🎺",
+  "Must include a tiny pogo stick. 🤸",
+  "Must include a silly name pun. 🤓",
+  "Must glow slightly in the dark. 🌟",
+  "Must include a ceremonial launch button. 🔴",
+  "Must come in at least 7 unnecessary colors. 🎨",
+  "Must include a secret compartment. 🕵️",
+  "Must include an emergency mode. 🚨",
+  "Must include a dramatic backstory. 📖",
+  "Must include a loyalty badge system. 🏅",
+  "Must include a scented element. 🌸",
+  "Must require two people to operate. 🤝",
+  "Must include a confusing premium tier. 💎",
+  "Must include a mascot origin story. 📜",
+  "Must make a satisfying click noise. 👌",
+  "Must include a customizable theme song. 🎵",
+  "Must include a “pro mode.” 🧠",
+  "Must require at least one unnecessary accessory. 🧩",
+  "Must include a limited-edition drop. ⏳",
+  "Must have an absurdly confident tagline. 📢",
+  "Must include a ceremonial startup launch video. 🎬",
+  "Must have a freemium model. 🆓",
+  "Must include a leaderboard. 🏆",
+  "Must involve magnets somehow. 🧲",
+  "Must include a mood-based setting. 🌈",
+  "Must include an awkward beta phase. 🧪",
+  "Must feature at least one unnecessary AI feature. 🤖",
+  "Must include a celebratory chime. 🔔",
+  "Must include a travel-size version. ✈️",
+  "Must have a dramatic logo reveal. 🌀",
+  "Must include a hidden Easter egg. 🥚",
+  "Must include a family plan. 👨‍👩‍👧‍👦",
+  "Must include a countdown timer. ⏳",
+  "Must require an onboarding tutorial. 📘",
+  "Must include a customizable mascot outfit. 👕",
+  "Must have a physical switch that feels important. 🔘",
+  "Must include a seasonal edition. 🍁",
+  "Must include a hype trailer voiceover. 🎤",
+  "Must include a dramatic reveal moment. 🎭",
+  "Must include a big red emergency button. 🔴",
+  "Must require at least one subscription tier. 💳",
+  "Must include 5 tiers. 💎",
+  "Must include a free trial. 🆓",
+  "Must include a referral bonus. 🤝",
+  "Must include a mascot accessory. 👒",
+  "Must include a silent mode. 🤫",
+  "Must include a chaotic mode. 🔥",
+  "Must include a mobile app companion. 📱",
+  "Must include a physical manual. 📘",
+  "Must include a tiny LED indicator. 💡",
+  "Must include a limited lifetime warranty. 📜",
+  "Must include a holographic option. 🌈",
+  "Must include a glow-up feature. ✨",
+  "Must include a reset button. 🔄",
+  "Must include a secret VIP mode. 🕶️",
+  "Must include a user badge system. 🏅",
+  "Must include a sound that goes 'ding'. 🔔",
+  "Must include a celebratory animation. 🎉",
+  "Must include a stealth mode. 🕵️",
+  "Must include an eco-friendly mode. 🌱",
+  "Must include a customizable color palette. 🎨",
+  "Must include a dramatic tagline. 📢",
+  "Must include a beta version. 🧪",
+  "Must include a loyalty program. 🪙",
+  "Must include a hidden upgrade. 🔓",
+  "Must include a companion keychain. 🔑",
+  "Must include a collapsible version. 🧳",
+  "Must include a collectible edition. 🏆",
+  "Must include a limited seasonal drop. 🍁",
+  "Must include an annual summit. 🎤",
+  "Must include a community forum. 💬",
+  "Must include a mysterious origin story. 📖",
+  "Must include a bold rebrand mid-lifecycle. 🎨",
+  "Must include a performance mode. ⚡",
+  "Must include a silent retreat mode. 🧘",
+  "Must include a voice assistant personality. 🎙️",
+  "Must include a confetti trigger. 🎊",
+  "Must include a startup pitch deck. 📊",
+  "Must include a ceremonial ribbon cutting. ✂️",
+  "Must include a soft-launch event. 🎈",
+  "Must include a hardware add-on. 🔧",
+  "Must include a wearable add-on. 👕",
+  "Must include a physical toggle switch. 🔘",
+  "Must include a badge of honor. 🛡️",
+  "Must include a travel case. 🎒",
+  "Must include a mini version. 🧸",
+  "Must include a dramatic countdown. ⏳",
+  "Must include a confetti cannon. 🎉",
+  "Must include a personalized greeting. 👋",
+  "Must include a signature scent. 🌸",
+  "Must include a soundboard feature. 🎛️",
+  "Must include a nostalgic version. 📼",
+  "Must include a pro edition. 🧠",
+  "Must include a DIY kit. 🧰",
+  "Must include a mysterious upgrade path. 🛤️",
+  "Must include a compatibility mode. 🔗",
+  "Must include a limited founder's edition. 👑",
+  "Must include a tiny storage drawer. 🗄️",
+  "Must include a dramatic pause feature. ⏸️",
+  "Must include a daily challenge mode. 📆",
+  "Must include a leaderboard. 🏆",
+  "Must include a secret handshake. 🤝",
+  "Must include a ceremonial startup anthem. 🎶",
+  "Must include a prestige reset system. 🔁",
+  "Must include a modular attachment. 🧩",
+  "Must include a digital twin version. 🪞",
+  "Must include a surprise upgrade. 🎁",
+  "Must include a reversible mode. 🔄",
+  "Must include a mascot outfit pack. 👕",
+  "Must include a holiday edition. 🎄",
+  "Must include a stealth launch. 🚀",
+  "Must include a big dramatic logo. 🌀",
+  "Must include a minimalist version. ⚪",
+  "Must include a maximalist version. 🌈",
+  "Must include a collaborative mode. 👥",
+  "Must include a tiny built-in speaker. 🔊",
+  "Must include a wireless version. 📡",
+  "Must include a wired-only version. 🔌",
+  "Must include a solar-powered option. ☀️",
+  "Must include a crank-powered backup. 🔧",
+  "Must include a lifetime achievement badge. 🏅",
+  "Must include a hidden message. ✉️",
+  "Must include a mascot sidekick. 🐾",
+  "Must include a guided onboarding. 📘",
+  "Must include a bold slogan. 📢",
+  "Must include a 'dark mode'. 🌑",
+  "Must include a 'party mode'. 🎉",
+  "Must include a family plan. 👨‍👩‍👧‍👦",
+  "Must include a ceremonial gong. 🥁",
+  "Must include a nostalgic sound effect. 📻",
+  "Must include a dramatic loading screen. ⏳",
+  "Must include a surprise easter egg. 🥚",
+  "Must include a celebratory fireworks mode. 🎆",
+  "Must include a merch store. 🛍️",
+  "Must include a community mascot vote. 🗳️",
+  "Must include a hidden expert mode. 🧠",
+  "Must include a legacy edition. 🏛️",
+  "Must include a bold product name pun. 🤓",
+  "Must include a special edition colorway. 🎨",
+  "Must include a limited NFT tie-in. 🖼️",
+  "Must include a physical prototype. 📦",
+  "Must include a ceremonial unboxing experience. 📦✨",
+  "Must include a tiny dramatic fog effect. 🌫️",
+  "Must include a built-in applause button. 👏",
+  "Must have a date proposal. 💌",
 ];
 
 const SURPRISE_DECK = [
-  "Must include a walrus mascot in the pitch.",
-  "Must include an in-flight use case.",
-  "Must be described as " + '"the Spotify of X".',
-  "Must include a nonprofit tie-in.",
+  "Must involve a walrus. 🦭",
+  "Must include an in-flight use case. ✈️",
+  "Must be described as " + '"the Spotify of X".' + " 🎶",
+  "Must include a nonprofit tie-in. ❤️",
+  "Must include a confetti moment. 🎉",
+  "Must include a tiny robot sidekick. 🤖",
+  "Must include a pirate accent. 🏴‍☠️",
+  "Must include a surprise dance break. 💃",
+  "Must include a dramatic fog machine. 🌫️",
+  "Must include a banana. 🍌",
+  "The walrus only invests in sustainable products. 🌎",
+  "The walrus hates tech buzzwords. 🚫",
+  "The walrus wants recurring revenue. 💳",
+  "The walrus demands a live demo (mime it if you don't have the materials). 🎬",
+  "The walrus is deeply confused. #explainitlikeim5. 🤔",
+  "The walrus wants international expansion plans. 🌍",
+  "Pitch it like you're on a reality TV show. 📺",
+  "You must whisper the entire pitch. 🤫",
+  "You must dramatically overvalue your company. 💰",
+  "You must pivot halfway through the pitch. 🔄",
+  "Include a fake testimonial from your grandma. 👵",
+  "Include a suspiciously specific statistic. 📊",
+  "You must fire someone mid-pitch. 🧑‍💼",
+  "You must ask the walrus for more money twice. 🦭💸",
+  "Include an unnecessary rebrand announcement. 🎨",
+  "You must compare it to at least two unicorn startups. 🦄",
+  "You must dramatically unveil something under a cloth. 🎭",
+  "You must accuse another player of stealing your idea. 🕵️",
+  "Include a surprise merger announcement. 🤝",
+  "You must make it emotional. Cry if you can. 😭",
+  "You must pitch while standing dramatically. 🕴️",
+  "You must rhyme at least once. 🎵",
+  "You must shout one random word mid-pitch. 📢",
+  "You must include a fake competitor comparison chart. 📊",
+  "You must end with a catchphrase. 🎬",
+  "You must pivot to a blockchain angle halfway through. ⛓️",
+  "You must reveal a surprise co-founder. 🤝",
+  "You must pretend the product already sold out. 🔥",
+  "You must include a slow clap moment. 👏",
+  "You must pretend the demo malfunctioned. 💻💥",
+  "The walrus wants a detailed exit strategy. 🚪",
+  "The walrus only invests in products with pets. 🐾",
+  "The walrus is of the 1%. Insist this be for rich consumers only. 💎",
+  "The walrus demands an emotional backstory. 😭",
+  "The walrus wants proof of traction. 📈",
+  "The walrus interrupts constantly. Adapt. 🦭",
+  "The walrus wants a dramatic valuation reveal. 💰",
+  "The walrus wants this to go viral by tomorrow. 🚀",
+  "The walrus requires it to be a B2B SaaS product. 🏢",
+  "You must inlude at least 1 thing this pitch taught you about B2B SaaS. 💻",
+  "You must dramatically pause for applause. 👏",
+  "You must pitch as if you're extremely tired. 😴",
+  "You must speak like it's a pharmaceutical commercial. 💎",
+  "You must pretend this is your third pivot. 🔄",
+  "You must announce a surprise IPO. 📈",
+  "You must reveal a secret competitor. 🕵️",
+  "You must include a dramatic slow-motion demo. 🐢",
+  "You must begin your pitch with 'A long time ago, in a galaxy far, far away...'. 🌌",
+  "You must integrate AI agents somehow. 🤖",
+  "You must compare it to something wildly unrelated. 🐢",
+  "You must whisper one key feature. 🤫",
+  "You must shout the valuation. 💰",
+  "You must include a dramatic gasp moment. 😲",
+  "You must pitch like you're in a medieval market. 🏰",
+  "You must accuse the walrus of doubting you. 🦭",
+  "You must unveil a surprise product add-on. 🎁",
+  "You must dramatically overpromise scale. 🌍",
+  "You must pretend it already went viral. 🔥",
+  "You must include a dramatic team intro. 👥",
+  "You must ask permission to marry the walrus's son/daughter. 💍",
+  "You must include a fake customer testimonial. 🗣️",
+  "You must end with a dramatic mic drop. 🎤",
+  "The walrus only invests in chaotic energy. 🔥",
+  "The walrus demands luxury branding. 💎",
+  "The walrus demands emotional vulnerability. 😭",
+  "The walrus loves complexity. Be as verbose as possible. 🧠",
+  "The walrus interrupts constantly. Adapt. 🦭",
+  "The walrus demands international expansion immediately. 🌍",
+  "The walrus wants recurring revenue explained twice. 💳",
+  "The walrus insists this solves climate change. 🌎",
+  "The walrus only invests in products with pets. 🐾",
+  "The walrus wants a detailed exit plan. 🚪",
+  "The walrus wants a limited edition drop strategy. ⏳",
+  "The walrus demands a surprise twist. 🎭",
+  "The walrus insists on a rebrand mid-pitch. 🎨",
+  "The walrus wants proof of traction. 📈",
+  "The walrus demands this be the 'Uber of something.' 🚗",
+  "The walrus wants it described as a movement. ✊",
+  "The walrus demands a jingle. 🎶",
+  "The walrus wants a bold tagline. 📢",
+  "The walrus wants a popular meme. 😂",
+  "The walrus is British. Pitch with an accent 🇬🇧",
+  "The walrus is from Texas. Pitch with a Southern twang 🤠",
+  "The walrus wants celebrity endorsements. 🌟",
+  "The walrus demands a controversial feature. 🔥",
+  "The walrus wants to see a prototype. 📦",
+  "The walrus demands you pivot to a partnership with Anthropic. 🤖",
+  "The walrus wants a merch strategy. 🛍️",
+  "The walrus demands global domination. 🌍",
+  "The walrus insists this be subscription-only. 💳",
+  "The walrus wants a teaser trailer. 🎬",
+  "The walrus wants a comprehensive packaging strategy. 📦",
+  "The walrus demands scalability explained loudly. 📈",
+  "The walrus wants a confusing but exciting roadmap. 🗺️",
+  "You must trash talk another player's idea. 🗣️",
 ];
 
 const MASCOT_OPTIONS = [
@@ -195,6 +514,11 @@ const shuffle = <T>(items: T[]) => {
     .map((item) => ({ item, sort: Math.random() }))
     .sort((a, b) => a.sort - b.sort)
     .map(({ item }) => item);
+};
+
+const getMustHaveBonus = (usedMustHaves?: string[]) => {
+  const count = usedMustHaves?.length ?? 0;
+  return Math.max(0, count - 1) * 0.25;
 };
 
 const getNextPhase = (current: GamePhase) => {
@@ -243,6 +567,10 @@ const initializeGameState = (room: Room): RoomGameState => {
     disqualifiedPlayers: new Set(),
     playerScores,
     gameWinner: null,
+    gameWinners: [],
+    finalRoundPlayers: [],
+    finalRoundRankings: {},
+    judgeViewedPitches: {},
   };
 };
 
@@ -389,6 +717,31 @@ const dealMustHaves = (room: Room, gameState: RoomGameState) => {
   gameState.walrusSurprisePlayer = surprisePlayer;
 };
 
+const dealFinalRoundCards = (room: Room, gameState: RoomGameState) => {
+  // For final round: each player gets exactly 3 must-haves and 1 walrus surprise
+  const shuffled = shuffle(MUST_HAVE_DECK);
+  let index = 0;
+  const byPlayer: Record<string, string[]> = {};
+  const surpriseByPlayer: Record<string, string | null> = {};
+
+  // Deal 3 must-haves to each final round player
+  gameState.finalRoundPlayers.forEach((playerName) => {
+    byPlayer[playerName] = shuffled.slice(index, index + 3);
+    index += 3;
+  });
+
+  // Give each final round player a walrus surprise
+  const surpriseShuffled = shuffle(SURPRISE_DECK);
+  gameState.finalRoundPlayers.forEach((playerName, idx) => {
+    surpriseByPlayer[playerName] = surpriseShuffled[idx % surpriseShuffled.length];
+  });
+
+  gameState.mustHavesByPlayer = byPlayer;
+  gameState.surpriseByPlayer = surpriseByPlayer;
+  // In final round, all pitchers are "walrus surprise" players for bonus purposes
+  gameState.walrusSurprisePlayer = null; // Not used in final round
+};
+
 const rotateWalrus = (gameState: RoomGameState) => {
   gameState.walrusQueueIndex = (gameState.walrusQueueIndex + 1) % gameState.walrusQueue.length;
   gameState.walrus = gameState.walrusQueue[gameState.walrusQueueIndex];
@@ -399,13 +752,37 @@ const checkGameEnd = (gameState: RoomGameState): boolean => {
   return maxScore >= 5;
 };
 
+const getFinalRoundPlayers = (gameState: RoomGameState): string[] => {
+  const scores = Object.entries(gameState.playerScores).sort((a, b) => b[1] - a[1]);
+  if (scores.length === 0) return [];
+
+  const topScore = scores[0][1];
+  const topPlayers = scores.filter(([, score]) => score === topScore).map(([player]) => player);
+
+  // If only one player at top, find all tied for second
+  if (topPlayers.length === 1 && scores.length > 1) {
+    const secondScore = scores.find(([player]) => !topPlayers.includes(player))?.[1];
+    if (secondScore !== undefined) {
+      const secondPlacePlayers = scores
+        .filter(([, score]) => score === secondScore)
+        .map(([player]) => player);
+      return [...topPlayers, ...secondPlacePlayers];
+    }
+  }
+
+  return topPlayers;
+};
+
 const getGameWinner = (gameState: RoomGameState): string | null => {
   const maxScore = Math.max(...Object.values(gameState.playerScores));
   if (maxScore < 5) return null;
-  for (const [player, score] of Object.entries(gameState.playerScores)) {
-    if (score === maxScore) return player;
-  }
-  return null;
+
+  // Return winner only if they have >= 5 and game is decided
+  const topPlayers = Object.entries(gameState.playerScores)
+    .filter(([, score]) => score === maxScore)
+    .map(([player]) => player);
+
+  return topPlayers.length === 1 ? topPlayers[0] : null;
 };
 
 const startRevealPhase = (room: Room, gameState: RoomGameState) => {
@@ -416,6 +793,51 @@ const startRevealPhase = (room: Room, gameState: RoomGameState) => {
     gameState.pitchTimerTimeoutId = null;
   }
   gameState.pitchEndsAt = null;
+};
+
+const finalizeFinalRoundPitches = (room: Room, gameState: RoomGameState) => {
+  if (room.status !== "final-round") {
+    return;
+  }
+
+  const list = roomPitches.get(room.code) ?? [];
+
+  // Auto-submit pitches for final round players who haven't submitted
+  gameState.finalRoundPlayers.forEach((playerName: string) => {
+    const existing = list.find((p) => p.player === playerName);
+    if (!existing) {
+      list.push({
+        id: `pitch-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+        player: playerName,
+        title: "Untitled Pitch",
+        summary: "",
+        voice: "Neon Announcer",
+        usedMustHaves: [],
+        aiGenerated: false,
+        isValid: false,
+        isDisqualified: false,
+      });
+      return;
+    }
+    // Final round requires at least 2 must-haves
+    const isValid = (existing.usedMustHaves ?? []).length >= 2;
+    const existingIndex = list.findIndex((p) => p.player === playerName);
+    if (existingIndex >= 0) {
+      list[existingIndex] = {
+        ...existing,
+        isValid,
+        isDisqualified: existing.isDisqualified ?? false,
+      };
+    }
+  });
+
+  roomPitches.set(room.code, list);
+
+  // Move to final round voting (judges will now rank)
+  // Stay in final round phase but mark all pitches as ready
+  gameState.finalRoundPlayers.forEach((playerName: string) => {
+    gameState.pitchStatusByPlayer[playerName] = "ready";
+  });
 };
 
 const finalizePitchPhase = (room: Room, gameState: RoomGameState) => {
@@ -478,6 +900,50 @@ const startPitchPhase = (room: Room, gameState: RoomGameState) => {
   });
 };
 
+const startFinalRound = (room: Room, gameState: RoomGameState) => {
+  room.status = "final-round";
+  gameState.phase = "final-round";
+
+  // All players who are NOT in final round become judges
+  // Final round players will pitch
+  gameState.finalRoundRankings = {};
+  gameState.judgeViewedPitches = {};
+
+  // Clear previous round data
+  // Pick ONE random ask from the deck (no walrus selection in final round)
+  const randomAsk = shuffle(ASK_DECK)[0] ?? "Create something amazing!";
+  gameState.askOptions = [randomAsk]; // Only one option
+  gameState.selectedAsk = randomAsk; // Auto-selected
+  gameState.challengeReveal = null;
+  gameState.viewedPitchIds.clear();
+  gameState.challenges = [];
+  roomPitches.delete(room.code);
+
+  // Reset pitch statuses - only final round players need to pitch
+  room.players.forEach((player) => {
+    if (gameState.finalRoundPlayers.includes(player.name)) {
+      gameState.pitchStatusByPlayer[player.name] = "drafting";
+    } else {
+      gameState.pitchStatusByPlayer[player.name] = "ready"; // Judges don't pitch
+      if (!gameState.judgeViewedPitches[player.name]) {
+        gameState.judgeViewedPitches[player.name] = new Set(); // Initialize judge's viewed pitches
+      }
+    }
+  });
+
+  // Deal cards to final round players (3 must-haves + 1 walrus surprise each)
+  dealFinalRoundCards(room, gameState);
+
+  // Start pitch timer
+  if (gameState.pitchTimerTimeoutId) {
+    clearTimeout(gameState.pitchTimerTimeoutId);
+  }
+  gameState.pitchEndsAt = Date.now() + gameState.pitchTimerSeconds * 1000;
+  gameState.pitchTimerTimeoutId = setTimeout(() => {
+    finalizeFinalRoundPitches(room, gameState);
+  }, gameState.pitchTimerSeconds * 1000);
+};
+
 const startDealPhase = (room: Room, gameState: RoomGameState) => {
   // Randomize walrus on first round
   if (gameState.round === 0) {
@@ -533,7 +999,7 @@ const applyRoundResult = (pitchId: string, voter: string) => {
 
   const winner = pitch.player;
   const walrusSurpriseWinner = winner === gameState.walrusSurprisePlayer;
-  const pointsAwarded = walrusSurpriseWinner ? 2 : 1;
+  const pointsAwarded = (walrusSurpriseWinner ? 2 : 1) + getMustHaveBonus(pitch.usedMustHaves);
   const winnerPlayer = findPlayer(winner);
   if (winnerPlayer) {
     winnerPlayer.points += pointsAwarded;
@@ -759,6 +1225,12 @@ server.get("/api/room/:code/game", async (request) => {
   // Convert Set to array for JSON serialization
   const disqualifiedArray = Array.from(gameState.disqualifiedPlayers);
 
+  // Convert judgeViewedPitches Sets to arrays
+  const judgeViewedPitchesArray: Record<string, string[]> = {};
+  Object.entries(gameState.judgeViewedPitches).forEach(([judge, pitchSet]) => {
+    judgeViewedPitchesArray[judge] = Array.from(pitchSet);
+  });
+
   return {
     ok: true,
     room: {
@@ -776,6 +1248,10 @@ server.get("/api/room/:code/game", async (request) => {
       pitchEndsAt: gameState.pitchEndsAt,
       walrusSurprisePlayer: gameState.walrusSurprisePlayer,
       gameWinner: gameState.gameWinner,
+      gameWinners: gameState.gameWinners,
+      finalRoundPlayers: gameState.finalRoundPlayers,
+      finalRoundRankings: gameState.finalRoundRankings,
+      judgeViewedPitches: judgeViewedPitchesArray,
       challengeReveal: gameState.challengeReveal,
       lastRoundWinner: gameState.lastRoundWinner,
       viewedPitchIds: Array.from(gameState.viewedPitchIds),
@@ -988,7 +1464,13 @@ server.post("/api/room/:code/pitch", async (request) => {
   }
   const trimmedTitle = body.title?.trim() ?? "";
   const trimmedSummary = body.summary?.trim() ?? "";
-  const hasMustHaves = (body.usedMustHaves ?? []).length > 0;
+  const usedMustHavesCount = (body.usedMustHaves ?? []).length;
+
+  // Final round requires at least 2 must-haves, normal rounds require at least 1
+  const isFinalRound = gameState.phase === "final-round";
+  const minMustHaves = isFinalRound ? 2 : 1;
+  const hasMustHaves = usedMustHavesCount >= minMustHaves;
+
   const isEmpty = !trimmedTitle || !trimmedSummary;
   const isValid = hasMustHaves && !isEmpty;
   const isDisqualified = !isValid;
@@ -1037,14 +1519,49 @@ server.post("/api/room/:code/generate-pitch", async (request) => {
     ask: string;
     mustHaves: string[];
     surprise?: string | null;
+    playerName: string;
   };
 
-  const { ask, mustHaves, surprise } = body;
+  const { ask, mustHaves, surprise, playerName } = body;
 
   if (!ask || !mustHaves || mustHaves.length === 0) {
     return {
       ok: false,
       message: "Ask and at least one MUST HAVE required",
+    };
+  }
+
+  if (!playerName) {
+    return {
+      ok: false,
+      message: "Player name required",
+    };
+  }
+
+  const room = rooms.get(code);
+  if (!room) {
+    return {
+      ok: false,
+      message: "Room not found",
+    };
+  }
+
+  const gameState = roomGameStates.get(code);
+  if (!gameState) {
+    return {
+      ok: false,
+      message: "Game not started",
+    };
+  }
+
+  // Check if player has enough balance
+  const playerScore = gameState.playerScores[playerName] ?? 0;
+  const AI_GENERATION_COST = 0.5; // $50 = 0.5 points
+
+  if (playerScore < AI_GENERATION_COST) {
+    return {
+      ok: false,
+      message: "Insufficient balance. You need at least $50 to use AI generation.",
     };
   }
 
@@ -1105,6 +1622,10 @@ Keep it exciting, founder-friendly, and ready to be read aloud. No fluff or disc
       };
     }
 
+    // Deduct $50 cost for AI generation
+    gameState.playerScores[playerName] =
+      (gameState.playerScores[playerName] ?? 0) - AI_GENERATION_COST;
+
     return {
       ok: true,
       pitch: generatedText,
@@ -1156,6 +1677,7 @@ server.post("/api/room/:code/pitch-viewed", async (request) => {
     };
   }
   const pitchId = body.pitchId?.trim() ?? "";
+  const viewer = body.viewer?.trim() ?? "";
   if (!pitchId) {
     return {
       ok: false,
@@ -1163,6 +1685,20 @@ server.post("/api/room/:code/pitch-viewed", async (request) => {
     };
   }
   const gameState = getRoomGameState(room);
+
+  // In final round, track views per judge
+  if (gameState.phase === "final-round" && viewer) {
+    if (!gameState.judgeViewedPitches[viewer]) {
+      gameState.judgeViewedPitches[viewer] = new Set();
+    }
+    gameState.judgeViewedPitches[viewer].add(pitchId);
+    return {
+      ok: true,
+      viewedPitchIds: Array.from(gameState.judgeViewedPitches[viewer]),
+    };
+  }
+
+  // Normal round: only walrus can mark pitches viewed
   if (body.viewer && body.viewer.toLowerCase() !== gameState.walrus.toLowerCase()) {
     return {
       ok: false,
@@ -1231,7 +1767,7 @@ server.post("/api/room/:code/judge", async (request) => {
   // If winner wasn't disqualified, award points
   if (!gameState.disqualifiedPlayers.has(winningPitch.player)) {
     const isSurpriseWinner = winningPitch.player === gameState.walrusSurprisePlayer;
-    const pointsAward = isSurpriseWinner ? 2 : 1;
+    const pointsAward = (isSurpriseWinner ? 2 : 1) + getMustHaveBonus(winningPitch.usedMustHaves);
     gameState.playerScores[winningPitch.player] =
       (gameState.playerScores[winningPitch.player] ?? 0) + pointsAward;
     gameState.lastRoundWinner = {
@@ -1247,7 +1783,11 @@ server.post("/api/room/:code/judge", async (request) => {
 
   // Check if game is over
   if (checkGameEnd(gameState)) {
-    gameState.gameWinner = getGameWinner(gameState);
+    // Someone reached $500 - trigger final round with top players
+    const finalRoundPlayers = getFinalRoundPlayers(gameState);
+    gameState.finalRoundPlayers = finalRoundPlayers;
+
+    // Don't set gameWinner yet - will be determined in final round
   }
 
   room.status = "results";
@@ -1258,6 +1798,8 @@ server.post("/api/room/:code/judge", async (request) => {
     playerScores: gameState.playerScores,
     disqualified: Array.from(gameState.disqualifiedPlayers),
     gameWinner: gameState.gameWinner,
+    gameWinners: gameState.gameWinners,
+    finalRoundNeeded: gameState.finalRoundPlayers.length > 0,
   };
 });
 
@@ -1347,6 +1889,17 @@ server.post("/api/room/:code/advance-round", async (request) => {
     };
   }
 
+  // Check if we need a final round
+  if (gameState.finalRoundPlayers.length > 0) {
+    // Start final round
+    startFinalRound(room, gameState);
+    return {
+      ok: true,
+      finalRoundStarted: true,
+      finalRoundPlayers: gameState.finalRoundPlayers,
+    };
+  }
+
   // Advance to next round
   gameState.round += 1;
   gameState.walrusQueue = room.players.map((player) => player.name);
@@ -1371,6 +1924,113 @@ server.post("/api/room/:code/advance-round", async (request) => {
     ok: true,
     round: gameState.round,
     walrus: gameState.walrus,
+  };
+});
+
+server.post("/api/room/:code/tiebreaker-ranking", async (request) => {
+  const { code } = request.params as { code: string };
+  const body = request.body as {
+    playerName: string;
+    rankedPitchIds: string[];
+  };
+
+  const room = rooms.get(code);
+  if (!room) {
+    return {
+      ok: false,
+      message: "Room not found",
+    };
+  }
+
+  const gameState = getRoomGameState(room);
+
+  if (gameState.phase !== "final-round") {
+    return {
+      ok: false,
+      message: "Not in final round phase",
+    };
+  }
+
+  const { playerName, rankedPitchIds } = body;
+
+  if (!playerName || !rankedPitchIds) {
+    return {
+      ok: false,
+      message: "Player name and ranked pitch IDs required",
+    };
+  }
+
+  // Only non-final-round players can rank
+  if (gameState.finalRoundPlayers.includes(playerName)) {
+    return {
+      ok: false,
+      message: "Final round contestants cannot vote",
+    };
+  }
+
+  gameState.finalRoundRankings[playerName] = rankedPitchIds;
+
+  // Check if all judges have submitted rankings
+  const judges = room.players
+    .filter((p) => !gameState.finalRoundPlayers.includes(p.name))
+    .map((p) => p.name);
+
+  const allJudgesVoted = judges.every((judge) => gameState.finalRoundRankings[judge]);
+
+  if (allJudgesVoted) {
+    // Tally rankings with new earnings-based scoring
+    const pitches = roomPitches.get(code) ?? [];
+    const earnings: Record<string, number> = {};
+    const numPlayers = gameState.finalRoundPlayers.length;
+
+    // Initialize earnings for final round players
+    gameState.finalRoundPlayers.forEach((player: string) => {
+      earnings[player] = 0;
+    });
+
+    // Calculate earnings based on rankings
+    // 1st place = N×, 2nd = (N-1)×, 3rd = (N-2)×, etc.
+    // Base earning is 1 point = $100
+    Object.values(gameState.finalRoundRankings).forEach((ranking: string[]) => {
+      ranking.forEach((pitchId: string, index: number) => {
+        const pitch = pitches.find((p) => p.id === pitchId);
+        if (pitch && earnings[pitch.player] !== undefined) {
+          const multiplier = numPlayers - index; // 1st gets N, 2nd gets N-1, etc.
+          earnings[pitch.player] += multiplier; // Each ballot contributes multiplier × 1 point
+        }
+      });
+    });
+
+    // Update player scores with final round earnings
+    gameState.finalRoundPlayers.forEach((player: string) => {
+      gameState.playerScores[player] = (gameState.playerScores[player] ?? 0) + earnings[player];
+    });
+
+    // Find winner(s) - highest total score wins
+    const allScores = Object.entries(gameState.playerScores);
+    const maxScore = Math.max(...allScores.map(([, score]) => score));
+    const winners = allScores.filter(([, score]) => score === maxScore).map(([player]) => player);
+
+    if (winners.length === 1) {
+      // Single winner
+      gameState.gameWinner = winners[0];
+      gameState.gameWinners = [winners[0]];
+    } else {
+      // Still tied - declare co-winners
+      gameState.gameWinners = winners;
+      // Don't set single gameWinner - indicates co-win
+    }
+
+    // Move to results
+    room.status = "results";
+    gameState.phase = "results";
+  }
+
+  return {
+    ok: true,
+    allJudgesVoted,
+    gameWinner: gameState.gameWinner,
+    gameWinners: gameState.gameWinners,
   };
 });
 

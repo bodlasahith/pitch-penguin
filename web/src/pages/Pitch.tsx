@@ -2,6 +2,7 @@ import type { CSSProperties, PointerEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
+import LeaderboardModal from '../components/LeaderboardModal'
 
 type GameResponse = {
   ok: boolean
@@ -16,6 +17,7 @@ type GameResponse = {
   mustHavesByPlayer?: Record<string, string[]>
   surpriseByPlayer?: Record<string, string | null>
   pitchStatusByPlayer?: Record<string, string>
+  playerScores?: Record<string, number>
   players?: {
     name: string
     isHost: boolean
@@ -51,6 +53,7 @@ export default function Pitch() {
   const [readyError, setReadyError] = useState('')
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
   const [aiWarning, setAiWarning] = useState('')
+  const [playerScores, setPlayerScores] = useState<Record<string, number>>({})
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const canvasWrapRef = useRef<HTMLDivElement | null>(null)
   const isDrawingRef = useRef(false)
@@ -79,7 +82,7 @@ export default function Pitch() {
     if (!data.ok || !data.room) {
       return
     }
-    if (data.room.phase && data.room.phase !== 'pitch') {
+    if (data.room.phase && data.room.phase !== 'pitch' && data.room.phase !== 'final-round') {
       const nextPath =
         data.room.phase === 'deal'
           ? '/deal'
@@ -96,6 +99,7 @@ export default function Pitch() {
     setRobotVoiceEnabled(data.room.robotVoiceEnabled)
     setPitchEndsAt(data.room.pitchEndsAt ?? null)
     setPitchStatuses(data.pitchStatusByPlayer ?? {})
+    setPlayerScores(data.playerScores ?? {})
     if (playerName) {
       setMustHaves(data.mustHavesByPlayer?.[playerName] ?? [])
       setSurprise(data.surpriseByPlayer?.[playerName] ?? null)
@@ -125,7 +129,7 @@ export default function Pitch() {
     let refreshId: number | undefined
     let timerId: number | undefined
     void load()
-    refreshId = window.setInterval(load, 4000)
+    refreshId = window.setInterval(load, 2000)
     timerId = window.setInterval(() => {
       if (!pitchEndsAt) {
         setSecondsLeft(null)
@@ -181,10 +185,19 @@ export default function Pitch() {
       return
     }
     if (selectedMustHaves.length === 0) {
-      setAiWarning('No MUST HAVEs selected. Using AI will mark you as an AI user—other players can challenge this.')
+      setAiWarning('⚠️ No MUST HAVEs selected. Using AI will mark you as an AI user—other players can challenge this.')
       console.log('AI generation warning: no MUST HAVEs selected')
       return
     }
+    
+    // Check if player has enough balance
+    const playerBalance = playerScores[playerName] ?? 0
+    const AI_COST = 0.5 // $50
+    if (playerBalance < AI_COST) {
+      setAiWarning('⚠️ Insufficient balance. You need at least $50 to use AI generation.')
+      return
+    }
+    
     setAiWarning('')
     setAiAttempted(true)
     if (aiLockKey) {
@@ -198,19 +211,30 @@ export default function Pitch() {
         body: JSON.stringify({
           ask: selectedAsk,
           mustHaves: selectedMustHaves.length > 0 ? selectedMustHaves : [],
-          surprise: surprise ?? null
+          surprise: surprise ?? null,
+          playerName: playerName
         })
       })
       const data = (await response.json()) as { ok: boolean; pitch?: string; message?: string }
       if (!data.ok || !data.pitch) {
         alert(data.message ?? 'Failed to generate pitch. Try again.')
+        setAiAttempted(false) // Allow retry on failure
+        if (aiLockKey) {
+          localStorage.removeItem(aiLockKey)
+        }
         return
       }
       setGeneratedPitch(data.pitch)
       // Mark as AI user immediately upon successful generation
       setUsedAIGeneration(true)
+      // Refresh scores to show deduction
+      void load()
     } catch (err) {
       alert('Failed to generate pitch. Try again.')
+      setAiAttempted(false) // Allow retry on failure
+      if (aiLockKey) {
+        localStorage.removeItem(aiLockKey)
+      }
     } finally {
       setGenerating(false)
     }
@@ -362,6 +386,7 @@ export default function Pitch() {
       <section className="page-header">
         <div>
           <div className="eyebrow">Pitch Lab</div>
+          <LeaderboardModal roomCode={roomCode} inline />
           <h1>{isWalrus ? 'Monitor Pitches' : 'Write Your Pitch'}</h1>
           <p>
             {isWalrus
@@ -531,8 +556,12 @@ export default function Pitch() {
         <section className="panel">
           <h3>Running Out of Time?</h3>
           <p>
-            Use AI to generate a quick pitch that matches the ASK and your MUST HAVEs. Note: Other
-            players can challenge AI-generated pitches. If challenged correctly, you lose 1 point.
+            Use AI to generate a quick pitch that matches the ASK and your MUST HAVEs. 
+            <strong> Cost: $50</strong>. Note: Other players can challenge AI-generated pitches. 
+            If challenged correctly, you lose $100.
+          </p>
+          <p style={{ marginTop: '8px', fontSize: '0.95rem', color: '#666' }}>
+            Your balance: <strong>${((playerScores[playerName] ?? 0) * 100).toFixed(0)}</strong>
           </p>
           {generatedPitch && (
             <div className="card" style={{ marginTop: '12px', borderLeft: '4px solid #d4a574' }}>
@@ -554,14 +583,15 @@ export default function Pitch() {
                   generating ||
                   aiAttempted ||
                   usedAIGeneration ||
-                  isLocked
+                  isLocked ||
+                  (playerScores[playerName] ?? 0) < 0.5
                 }
               >
                 {generating
                   ? 'Generating...'
                   : aiAttempted || usedAIGeneration
                     ? 'AI Pitch Used'
-                    : 'Generate AI Pitch'}
+                    : 'Generate AI Pitch ($50)'}
               </button>
             </div>
           )}

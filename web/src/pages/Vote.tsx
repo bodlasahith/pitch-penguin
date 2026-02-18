@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import LeaderboardModal from '../components/LeaderboardModal'
 
 type Pitch = {
   id: string
@@ -104,7 +105,7 @@ export default function Vote() {
 
   useEffect(() => {
     void load()
-    const interval = window.setInterval(load, 3000)
+    const interval = window.setInterval(load, 2000)
     return () => window.clearInterval(interval)
   }, [roomCode])
 
@@ -174,7 +175,7 @@ export default function Vote() {
           <div>
             <div className="eyebrow">Game Over 🎉</div>
             <h1>{gameWinner} wins!</h1>
-            <p>First player to reach 5 points!</p>
+            <p>First player to reach $500!</p>
           </div>
         </section>
         <section className="panel">
@@ -184,7 +185,7 @@ export default function Vote() {
               .sort(([, a], [, b]) => b - a)
               .map(([player, score]) => (
                 <li key={player}>
-                  <strong>{player}</strong>: {score} points
+                  <strong>{player}</strong>: ${score * 100}
                 </li>
               ))}
           </ul>
@@ -208,6 +209,7 @@ export default function Vote() {
       <section className="page-header">
         <div>
           <div className="eyebrow">Results & Judgment</div>
+          <LeaderboardModal roomCode={roomCode} inline />
           <h1>
             {isWalrus ? 'Judge the Pitches' : 'Waiting for Walrus Decision'}
           </h1>
@@ -241,7 +243,7 @@ export default function Vote() {
                   <strong>{pitch.player}</strong>
                   {pitch.player === walrusSurprisePlayer && (
                     <div style={{ marginTop: '8px', color: '#d4a574' }}>
-                      ⭐ Walrus Surprise (2 points if wins)
+                      ⭐ Walrus Surprise ($200 if wins)
                     </div>
                   )}
                 </div>
@@ -312,13 +314,13 @@ export default function Vote() {
             .sort(([, a], [, b]) => b - a)
             .map(([player, score]) => (
               <li key={player}>
-                <strong>{player}</strong>: {score} points
+                <strong>{player}</strong>: ${score * 100}
                 {player === walrusSurprisePlayer && ' ⭐'}
               </li>
             ))}
         </ul>
         <p style={{ marginTop: '12px' }}>
-          First to 5 points wins.{' '}
+          First to $500 wins.{" "}
           {Object.values(playerScores).length > 0 &&
           Math.max(...Object.values(playerScores)) >= 5
             ? 'Game over!'

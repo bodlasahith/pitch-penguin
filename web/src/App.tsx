@@ -9,6 +9,7 @@ import Lobby from './pages/Lobby'
 import Pitch from './pages/Pitch'
 import Reveal from './pages/Reveal'
 import Results from './pages/Results'
+import FinalRound from './pages/FinalRound'
 import Vote from './pages/Vote'
 
 function App() {
@@ -31,6 +32,8 @@ function App() {
       <Route path="/vote/:code" element={withLayout(<Vote />)} />
       <Route path="/results" element={withLayout(<Results />)} />
       <Route path="/results/:code" element={withLayout(<Results />)} />
+      <Route path="/final-round" element={withLayout(<FinalRound />)} />
+      <Route path="/final-round/:code" element={withLayout(<FinalRound />)} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

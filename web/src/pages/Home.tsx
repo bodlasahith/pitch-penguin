@@ -186,9 +186,9 @@ export default function Home() {
                 'Walrus rotates each round and reads the ASK aloud.',
                 'Each player draws 4 MUST HAVEs and uses at least 1.',
                 'A secret Walrus Surprise hits one random player.',
-                'Walrus Surprise winners score 2 points instead of 1.',
+                'Walrus Surprise winners earn $200 instead of $100.',
                 'Players can request an AI pitch, but it is challengeable.',
-                'First to 5 points ends the game.'
+                'First to $500 ends the game.',
               ]
           ).map((rule) => (
             <li key={rule}>{rule}</li>
@@ -222,9 +222,9 @@ export default function Home() {
         <div className="panel">
           <h3>Win condition</h3>
           <p>
-            Each round, the Walrus selects the best pitch. That player gains 1
-            point, or 2 points if they held the Walrus Surprise. First to 5
-            points wins and the game ends.
+            Each round, the Walrus selects the best pitch. That player gains $100,
+            or $200 if they held the Walrus Surprise. First to $500 wins and the
+            game ends.
           </p>
         </div>
         <div className="panel">

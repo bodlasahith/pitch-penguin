@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
+import LeaderboardModal from '../components/LeaderboardModal'
 import walrusSVG from '../assets/walrus.svg'
 
 type GameResponse = {
@@ -133,6 +134,7 @@ export default function Deal() {
       <section className="page-header">
         <div>
           <div className="eyebrow">Round {round + 1}: The Deal</div>
+          <LeaderboardModal roomCode={roomCode} inline />
           <h1>
             {isWalrus ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -305,7 +307,7 @@ export default function Deal() {
               <strong>You have a Twist!</strong>
               <p style={{ margin: '8px 0', fontSize: '0.95rem' }}>{surprise}</p>
               <p style={{ fontSize: '0.85rem', color: '#666', margin: '8px 0' }}>
-                Use this in your pitch for bonus points if you win!
+                Use this in your pitch for a $100 bonus if you win!
               </p>
             </>
           ) : (
@@ -349,6 +351,8 @@ export default function Deal() {
           <p style={{ color: '#8c2d2a' }}>Unable to load round state. Try refreshing.</p>
         </section>
       )}
+      
+      <LeaderboardModal roomCode={roomCode} />
     </>
   )
 }

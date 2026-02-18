@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
+import LeaderboardModal from '../components/LeaderboardModal'
 
 type Pitch = {
   id: string
@@ -152,7 +153,7 @@ export default function Reveal() {
     }
 
     void load()
-    refreshId = window.setInterval(load, 3000)
+    refreshId = window.setInterval(load, 2000)
     return () => {
       if (refreshId) {
         window.clearInterval(refreshId)
@@ -264,6 +265,7 @@ export default function Reveal() {
       <section className="page-header">
         <div>
           <div className="eyebrow">Reveal & Judge</div>
+          <LeaderboardModal roomCode={roomCode} inline />
           <h1>{isWalrus ? 'Judge The Pitches' : 'Watch & Challenge'}</h1>
           <p>
             {isWalrus
@@ -379,7 +381,7 @@ export default function Reveal() {
           <h3>AI Challenge</h3>
           <p>
             Suspicious this pitch was AI-generated? Challenge it now. If correct, the presenter
-            loses 1 point. If incorrect, you're disqualified this round.
+            loses $100. If incorrect, you're disqualified this round.
           </p>
           <div className="footer-actions" style={{ marginTop: '16px' }}>
             <button
@@ -592,7 +594,7 @@ export default function Reveal() {
             <h3>AI Challenge Result</h3>
             <p>
               {challengeReveal.wasCorrect
-                ? `${challengeReveal.accuser} was correct. ${challengeReveal.disqualifiedPlayer} is disqualified and loses 1 point.`
+                ? `${challengeReveal.accuser} was correct. ${challengeReveal.disqualifiedPlayer} is disqualified and loses $100.`
                 : `${challengeReveal.accuser} was wrong and is disqualified this round.`}
             </p>
           </div>

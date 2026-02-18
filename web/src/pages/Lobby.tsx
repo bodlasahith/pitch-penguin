@@ -1,4 +1,3 @@
-import type { CSSProperties } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
@@ -173,7 +172,7 @@ export default function Lobby() {
     }
 
     void load()
-    refreshId = window.setInterval(load, 4000)
+    refreshId = window.setInterval(load, 2000)
 
     return () => {
       if (refreshId) {
@@ -281,16 +280,6 @@ export default function Lobby() {
       currentPlayer &&
       player.name.toLowerCase() === currentPlayer.toLowerCase()
   )
-  const mascotBadgeStyle: CSSProperties = {
-    width: '28px',
-    height: '28px',
-    borderRadius: '999px',
-    backgroundColor: 'rgba(59, 42, 21, 0.08)',
-    border: '1px solid rgba(59, 42, 21, 0.12)',
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  }
   const takenMascots = new Set(
     (players ?? [])
       .map((player) => player.mascot)

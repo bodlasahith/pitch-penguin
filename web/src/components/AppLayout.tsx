@@ -106,7 +106,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       case 'reveal':
         return { title: 'Up next: Reveal', subtitle: 'Queueing pitches for the walrus.' }
       case 'results':
-        return { title: 'Up next: Results', subtitle: 'Tallying points and winner.' }
+        return { title: 'Up next: Results', subtitle: 'Counting $100 bills and the winner.' }
       default:
         return { title: 'Syncing round', subtitle: 'Gathering the latest room state.' }
     }
