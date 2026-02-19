@@ -16,6 +16,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [leaving, setLeaving] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const lastPathRef = useRef(location.pathname)
+  const lastReadyPhaseRef = useRef<string | null>(null)
 
   useEffect(() => {
     lastPathRef.current = location.pathname
@@ -92,10 +93,48 @@ export default function AppLayout({ children }: AppLayoutProps) {
       return
     }
     if (isTransitioning) {
-      const timeoutId = window.setTimeout(() => setIsTransitioning(false), 600)
+      const timeoutId = window.setTimeout(() => {
+        setIsTransitioning(false)
+      }, 3000)
       return () => window.clearTimeout(timeoutId)
     }
   }, [roomCode, roomPhase, phasePath, location.pathname, isPublicRoute, navigate])
+
+  useEffect(() => {
+    const signalReady = async () => {
+      if (!roomCode || !roomPhase || isPublicRoute || isTransitioning) {
+        return
+      }
+      if (roomPhase !== 'deal' && roomPhase !== 'pitch') {
+        return
+      }
+      if (location.pathname !== phasePath) {
+        return
+      }
+      if (lastReadyPhaseRef.current === roomPhase) {
+        return
+      }
+      const playerName = localStorage.getItem(`bw:player:${roomCode}`) ?? ''
+      if (!playerName) {
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/room/${roomCode}/player-ready`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerName })
+        })
+        if (response.ok) {
+          lastReadyPhaseRef.current = roomPhase
+        }
+      } catch (err) {
+        console.error('Error signaling player ready:', err)
+      }
+    }
+
+    void signalReady()
+  }, [roomCode, roomPhase, phasePath, location.pathname, isPublicRoute, isTransitioning])
 
   const phaseCopy = useMemo(() => {
     switch (roomPhase) {

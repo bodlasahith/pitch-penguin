@@ -583,8 +583,7 @@ export default function Pitch() {
                   generating ||
                   aiAttempted ||
                   usedAIGeneration ||
-                  isLocked ||
-                  (playerScores[playerName] ?? 0) < 0.5
+                  isLocked
                 }
               >
                 {generating

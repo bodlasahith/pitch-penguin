@@ -23,6 +23,7 @@ type GameResponse = {
     gameWinners?: string[]
     finalRoundPlayers?: string[]
     round: number
+    truceActivated?: boolean
     lastRoundWinner?: {
       player: string
       pitchId: string
@@ -58,6 +59,7 @@ export default function Results() {
   const [lastWinner, setLastWinner] = useState<LastWinner | null>(null)
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
   const [finalRoundPitches, setFinalRoundPitches] = useState<Pitch[]>([])
+  const [truceActivated, setTruceActivated] = useState(false)
 
   const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
@@ -78,6 +80,7 @@ export default function Results() {
         setFinalRoundNeeded(hasFinalRound)
         setRound(data.room.round)
         setLastWinner(data.room.lastRoundWinner ?? null)
+        setTruceActivated(data.room.truceActivated ?? false)
         
         // Fetch final round pitches if there was a final round and game is over
         if (hasFinalRound && (data.room.gameWinner || data.room.gameWinners) && data.room.finalRoundPlayers) {
@@ -207,7 +210,7 @@ export default function Results() {
       <section className="page-header">
         <div>
           <div className="eyebrow">Round {round + 1} Complete</div>
-          <LeaderboardModal roomCode={roomCode} inline />
+          <LeaderboardModal roomCode={roomCode} />
           <h1>
             {gameWinner ? (
               <span>
@@ -236,6 +239,20 @@ export default function Results() {
               'View results and prepare for the next round.'
             )}
           </p>
+          {truceActivated && (
+            <div style={{
+              marginTop: '16px',
+              padding: '12px 16px',
+              backgroundColor: 'rgba(212, 165, 116, 0.15)',
+              border: '1px solid rgba(212, 165, 116, 0.3)',
+              borderRadius: '8px',
+              color: '#8b6f47',
+              fontWeight: 500,
+              fontSize: '14px',
+            }}>
+              🤝 Players agreed to a truce! Results based on previous round scores.
+            </div>
+          )}
         </div>
       </section>
 
@@ -516,8 +533,7 @@ export default function Results() {
         <h3>What's Next?</h3>
         {gameWinner ? (
           <p>
-            Congratulations to <strong>{gameWinnerLabel}</strong>! They reached $500 first and won
-            the game.
+            Congratulations to <strong>{gameWinnerLabel}</strong>! They reached <strong>${playerScores[gameWinner] * 100}</strong> and won the game.
           </p>
         ) : gameWinners.length > 1 && !finalRoundNeeded ? (
           <p>

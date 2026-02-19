@@ -63,12 +63,15 @@ export default function FinalRound() {
   const [rankedPitchIds, setRankedPitchIds] = useState<string[]>([])
   const [submitted, setSubmitted] = useState(false)
   const [viewedPitches, setViewedPitches] = useState<Set<string>>(new Set())
-  const [submitWarning, setSubmitWarning] = useState('')
+  const [submitError, setSubmitError] = useState<'viewed' | 'incomplete' | null>(null)
+  const [isTransitioning, setIsTransitioning] = useState(false)
   
   // Canvas state
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const canvasWrapRef = useRef<HTMLDivElement | null>(null)
   const isDrawingRef = useRef(false)
+  const hasStartedTransitionRef = useRef(false)
+  const finalRoundReadyRef = useRef(false)
   const [brushColor, setBrushColor] = useState('#2e2a27')
   const [brushSize, setBrushSize] = useState(6)
   const [isEraser, setIsEraser] = useState(false)
@@ -119,6 +122,9 @@ export default function FinalRound() {
       if (gameData.ok && gameData.room) {
         // Check for phase changes first - redirect if needed
         if (gameData.room.phase !== 'final-round') {
+          if (isTransitioning) {
+            setIsTransitioning(false)
+          }
           if (gameData.room.phase === 'results' || gameData.room.gameWinner) {
             navigate(`/results/${roomCode}`, { replace: true })
             return
@@ -135,6 +141,10 @@ export default function FinalRound() {
         setSelectedAsk(gameData.room.selectedAsk)
         setPitchEndsAt(gameData.room.pitchEndsAt ?? null)
         setPitchStatuses(gameData.pitchStatusByPlayer ?? {})
+
+        if (isTransitioning && phase === 'pitching') {
+          setIsTransitioning(false)
+        }
         
         // Check if player is a pitcher or judge
         const isPlayerPitcher = gameData.room.finalRoundPlayers.includes(playerName)
@@ -178,14 +188,31 @@ export default function FinalRound() {
             )
             setPitches(finalRoundPitches)
             
-            // If all pitchers are ready, switch to ranking phase
+            // If all pitchers are ready, check if it's a truce or switch to ranking
             const allPitchersReady = gameData.room.finalRoundPlayers.every(
               (player) => gameData.pitchStatusByPlayer?.[player] === 'ready'
             )
             // Only switch to ranking when ALL pitches are loaded (one per final round player)
             const allPitchesLoaded = finalRoundPitches.length === gameData.room.finalRoundPlayers.length
             if (allPitchersReady && allPitchesLoaded) {
-              setPhase('ranking')
+              // Check if all pitches are empty (truce situation)
+              const allEmpty = finalRoundPitches.every(
+                (p) => p.title === 'Untitled Pitch' && p.summary === '' && (!p.usedMustHaves || p.usedMustHaves.length === 0)
+              )
+              
+              if (allEmpty) {
+                // Truce detected - backend should have already set phase to results
+                // Just wait for the next poll to catch the phase change
+                console.log('Truce detected - waiting for backend to process...')
+              } else if (phase === 'pitching' && !hasStartedTransitionRef.current) {
+                // Normal ranking phase - start transition animation (only once)
+                hasStartedTransitionRef.current = true
+                setIsTransitioning(true)
+                setTimeout(() => {
+                  setPhase('ranking')
+                  setIsTransitioning(false)
+                }, 3000)
+              }
             }
           }
         }
@@ -193,7 +220,7 @@ export default function FinalRound() {
     } catch (error) {
       console.error('Error loading final round data:', error)
     }
-  }, [roomCode, playerName, navigate])
+  }, [roomCode, playerName, navigate, phase])
 
   useEffect(() => {
     void load()
@@ -202,8 +229,49 @@ export default function FinalRound() {
     return () => window.clearInterval(interval)
   }, [load])
 
-  // Timer countdown
   useEffect(() => {
+    setIsTransitioning(false)
+    hasStartedTransitionRef.current = false
+    finalRoundReadyRef.current = false
+  }, [])
+
+  // Reset transition ref when phase changes back to pitching
+  useEffect(() => {
+    if (phase === 'pitching') {
+      hasStartedTransitionRef.current = false
+    }
+  }, [phase])
+
+  // Signal to backend after transition overlay is gone
+  useEffect(() => {
+    const signalReady = async () => {
+      if (!roomCode || !playerName) return
+      if (phase !== 'pitching' || isTransitioning) return
+      if (finalRoundReadyRef.current) return
+
+      try {
+        const response = await fetch(`/api/room/${roomCode}/player-ready`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerName })
+        })
+        if (response.ok) {
+          finalRoundReadyRef.current = true
+        }
+      } catch (err) {
+        console.error('Error signaling player ready:', err)
+      }
+    }
+
+    void signalReady()
+  }, [roomCode, playerName, phase, isTransitioning])
+
+  // Timer countdown - only starts when not transitioning
+  useEffect(() => {
+    if (isTransitioning || !pitchEndsAt) {
+      return
+    }
+    
     const timerId = window.setInterval(() => {
       if (!pitchEndsAt) {
         setSecondsLeft(null)
@@ -213,7 +281,7 @@ export default function FinalRound() {
       setSecondsLeft(remaining)
     }, 1000)
     return () => window.clearInterval(timerId)
-  }, [pitchEndsAt])
+  }, [pitchEndsAt, isTransitioning])
 
   const handleSubmitPitch = useCallback(async () => {
     if (!roomCode || !playerName || isLocked) return
@@ -274,7 +342,8 @@ export default function FinalRound() {
         voice: 'Neon Announcer',
         aiGenerated: false,
         sketchData: null,
-        status: 'ready'
+        status: 'ready',
+        truce: true
       })
     })
     
@@ -313,18 +382,20 @@ export default function FinalRound() {
       return
     }
 
+    // Validate all pitches are ranked
     if (rankedPitchIds.length !== pitches.length) {
-      console.error('Incomplete ranking', { rankedCount: rankedPitchIds.length, pitchCount: pitches.length })
-      alert(`Error: Please rank all ${pitches.length} pitches before submitting`)
+      setSubmitError('incomplete')
       return
     }
 
+    // Validate all pitches have been viewed
     const allViewed = pitches.every(p => viewedPitches.has(p.id))
     if (!allViewed) {
-      setSubmitWarning('⚠️ You must view all pitches before submitting rankings!')
+      setSubmitError('viewed')
       return
     }
-    setSubmitWarning('')
+    
+    setSubmitError(null)
 
     try {
       console.log('Submitting ranking:', { playerName, rankedPitchIds })
@@ -348,9 +419,11 @@ export default function FinalRound() {
         setSubmitted(true)
         
         if (data.allJudgesVoted) {
+          // Start transition before navigating
+          setIsTransitioning(true)
           setTimeout(() => {
             navigate(`/results/${roomCode}`)
-          }, 1500)
+          }, 2500)
         }
       } else {
         console.error('Ranking submission returned ok:false', data)
@@ -510,7 +583,7 @@ export default function FinalRound() {
       <section className="page-header">
         <div>
           <div className="eyebrow">Final Round</div>
-          <LeaderboardModal roomCode={roomCode} inline />
+          <LeaderboardModal roomCode={roomCode} />
           <h1>🔥 Championship Pitch-Off</h1>
           <p>
             {isPitcher
@@ -645,7 +718,7 @@ export default function FinalRound() {
                 <button
                   className="button secondary"
                   onClick={handleProposeTruce}
-                  disabled={isLocked || proposingTruce}
+                  disabled={proposingTruce}
                 >
                   {proposingTruce ? 'Proposing Truce...' : 'Propose Truce'}
                 </button>
@@ -942,19 +1015,75 @@ export default function FinalRound() {
             >
               Submit Rankings
             </button>
-            {submitWarning && (
-              <p style={{ color: '#d32f2f', marginTop: '12px', fontWeight: 600 }}>
-                {submitWarning}
-              </p>
-            )}
           </div>
+          {submitError && (
+            <div style={{ 
+              marginTop: '12px', 
+              padding: '12px', 
+              backgroundColor: submitError === 'viewed' ? 'rgba(211, 47, 47, 0.1)' : 'rgba(211, 47, 47, 0.1)',
+              borderRadius: '8px',
+              border: '1px solid #d32f2f'
+            }}>
+              <p style={{ margin: 0, color: '#c1260d', fontWeight: 600 }}>
+                {submitError === 'viewed' 
+                  ? '⚠️ You must view all pitches before submitting rankings!'
+                  : `⚠️ Please rank all ${pitches.length} pitches before submitting`}
+              </p>
+            </div>
+          )}
         </section>
       )}
 
-      {!isPitcher && phase === 'ranking' && submitted && (
+      {!isPitcher && phase === 'ranking' && submitted && !isTransitioning && (
         <section className="panel">
           <h3>✓ Rankings Submitted</h3>
           <p>Waiting for other judges to submit their rankings...</p>
+        </section>
+      )}
+
+      {/* TRANSITION SCREEN - LOADING NEXT PHASE */}
+      {isTransitioning && (
+        <section className="panel" style={{ 
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          zIndex: 1000,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div style={{ textAlign: 'center' }}>
+            <h1 style={{ marginBottom: '24px', fontSize: '2.4rem' }}>
+              {isPitcher ? '🎯 Judges are ranking...' : '📊 Tallying results...'}
+            </h1>
+            <p style={{ fontSize: '1.1rem', color: '#666', marginBottom: '32px' }}>
+              {isPitcher 
+                ? 'Your pitch has been submitted! Judges are now ranking all final round pitches. Get ready for the final results!'
+                : 'All judges have submitted their rankings. The system is calculating the winner...'}
+            </p>
+            <div style={{ 
+              display: 'inline-block',
+              width: '60px',
+              height: '60px',
+              borderRadius: '50%',
+              border: '4px solid rgba(212, 165, 116, 0.2)',
+              borderTop: '4px solid #d4a574',
+              animation: 'spin 1s linear infinite'
+            }}>
+              <style>{`
+                @keyframes spin {
+                  to { transform: rotate(360deg); }
+                }
+              `}</style>
+            </div>
+            <p style={{ marginTop: '24px', fontSize: '0.9rem', color: '#999' }}>
+              Loading next phase... please wait
+            </p>
+          </div>
         </section>
       )}
     </>

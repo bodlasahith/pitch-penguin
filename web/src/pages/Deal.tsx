@@ -134,7 +134,7 @@ export default function Deal() {
       <section className="page-header">
         <div>
           <div className="eyebrow">Round {round + 1}: The Deal</div>
-          <LeaderboardModal roomCode={roomCode} inline />
+          <LeaderboardModal roomCode={roomCode} />
           <h1>
             {isWalrus ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -351,8 +351,6 @@ export default function Deal() {
           <p style={{ color: '#8c2d2a' }}>Unable to load round state. Try refreshing.</p>
         </section>
       )}
-      
-      <LeaderboardModal roomCode={roomCode} />
     </>
   )
 }

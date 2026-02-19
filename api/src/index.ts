@@ -115,6 +115,11 @@ type RoomGameState = {
   finalRoundPlayers: string[];
   finalRoundRankings: Record<string, string[]>;
   judgeViewedPitches: Record<string, Set<string>>;
+  finalRoundWalrus?: string | null;
+  finalRoundTruceByPlayer: Record<string, boolean>;
+  truceActivated?: boolean;
+  playersReady: Set<string>;
+  timerStarted: boolean;
 };
 
 const server = Fastify({
@@ -571,6 +576,10 @@ const initializeGameState = (room: Room): RoomGameState => {
     finalRoundPlayers: [],
     finalRoundRankings: {},
     judgeViewedPitches: {},
+    finalRoundWalrus: null,
+    finalRoundTruceByPlayer: {},
+    playersReady: new Set(),
+    timerStarted: false,
   };
 };
 

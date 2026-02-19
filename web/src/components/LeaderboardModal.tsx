@@ -3,7 +3,6 @@ import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 
 type LeaderboardModalProps = {
   roomCode: string
-  inline?: boolean
 }
 
 type GameResponse = {
@@ -14,7 +13,7 @@ type GameResponse = {
   players?: Array<{ name: string; mascot?: string }>
 }
 
-export default function LeaderboardModal({ roomCode, inline = false }: LeaderboardModalProps) {
+export default function LeaderboardModal({ roomCode }: LeaderboardModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [playerScores, setPlayerScores] = useState<Record<string, number>>({})
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
@@ -56,78 +55,36 @@ export default function LeaderboardModal({ roomCode, inline = false }: Leaderboa
       {/* Button */}
       <button
         onClick={() => setIsOpen(true)}
-        style={
-          inline
-            ? {
-                padding: '8px 16px',
-                borderRadius: '8px',
-                backgroundColor: '#d4a574',
-                border: '2px solid rgba(212, 165, 116, 0.3)',
-                color: '#fff',
-                fontSize: '14px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 2px 8px rgba(212, 165, 116, 0.2)',
-                transition: 'all 0.2s ease',
-              }
-            : {
-                position: 'fixed',
-                bottom: '24px',
-                right: '24px',
-                width: '56px',
-                height: '56px',
-                borderRadius: '50%',
-                backgroundColor: '#d4a574',
-                border: '2px solid rgba(212, 165, 116, 0.3)',
-                color: '#fff',
-                fontSize: '24px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 4px 12px rgba(212, 165, 116, 0.3)',
-                zIndex: 999,
-                transition: 'all 0.2s ease',
-              }
-        }
+        style={{
+          padding: '8px 16px',
+          borderRadius: '8px',
+          backgroundColor: '#d4a574',
+          border: '2px solid rgba(212, 165, 116, 0.3)',
+          color: '#fff',
+          fontSize: '14px',
+          fontWeight: '600',
+          cursor: 'pointer',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '8px',
+          boxShadow: '0 2px 8px rgba(212, 165, 116, 0.2)',
+          transition: 'all 0.2s ease',
+        }}
         onMouseEnter={(e) => {
-          if (!inline) {
-            (e.currentTarget as HTMLButtonElement).style.boxShadow =
-              '0 6px 16px rgba(212, 165, 116, 0.4)'
-            ;(e.currentTarget as HTMLButtonElement).style.transform =
-              'scale(1.05)'
-          } else {
-            (e.currentTarget as HTMLButtonElement).style.boxShadow =
-              '0 4px 12px rgba(212, 165, 116, 0.3)'
-            ;(e.currentTarget as HTMLButtonElement).style.transform =
-              'translateY(-2px)'
-          }
+          (e.currentTarget as HTMLButtonElement).style.boxShadow =
+            '0 4px 12px rgba(212, 165, 116, 0.3)'
+          ;(e.currentTarget as HTMLButtonElement).style.transform =
+            'translateY(-2px)'
         }}
         onMouseLeave={(e) => {
-          if (!inline) {
-            (e.currentTarget as HTMLButtonElement).style.boxShadow =
-              '0 4px 12px rgba(212, 165, 116, 0.3)'
-            ;(e.currentTarget as HTMLButtonElement).style.transform =
-              'scale(1)'
-          } else {
-            (e.currentTarget as HTMLButtonElement).style.boxShadow =
-              '0 2px 8px rgba(212, 165, 116, 0.2)'
-            ;(e.currentTarget as HTMLButtonElement).style.transform =
-              'translateY(0)'
-          }
+          (e.currentTarget as HTMLButtonElement).style.boxShadow =
+            '0 2px 8px rgba(212, 165, 116, 0.2)'
+          ;(e.currentTarget as HTMLButtonElement).style.transform =
+            'translateY(0)'
         }}
         title="View Leaderboard"
       >
-        {inline ? (
-          <>
-            📊 <span>Leaderboard</span>
-          </>
-        ) : (
-          '📊'
-        )}
+        📊 <span>Leaderboard</span>
       </button>
 
       {/* Modal Backdrop */}
