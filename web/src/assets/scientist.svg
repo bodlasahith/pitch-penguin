@@ -1,0 +1,76 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .m-bob { animation: scientistBob 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-hair { animation: hairStatic 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: 100px 40px; }
+    .m-goggles { animation: gogglesNudge 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-eyes { animation: blink 4.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-beaker { animation: beakerSlosh 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 100px 145px; }
+    .m-bubble { animation: bubbleRise 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-notes { animation: notesFlutter 2.1s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+    @keyframes scientistBob {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+    }
+
+    @keyframes hairStatic {
+      0%, 100% { transform: rotate(0deg) scale(1); }
+      35% { transform: rotate(-1.5deg) scale(1.02); }
+      70% { transform: rotate(1.5deg) scale(1.02); }
+    }
+
+    @keyframes gogglesNudge {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-1px); }
+    }
+
+    @keyframes blink {
+      0%, 45%, 53%, 100% { transform: scaleY(1); }
+      49% { transform: scaleY(0.12); }
+    }
+
+    @keyframes beakerSlosh {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-2deg); }
+      75% { transform: rotate(2deg); }
+    }
+
+    @keyframes bubbleRise {
+      0%, 100% { transform: translateY(0); opacity: 0.9; }
+      50% { transform: translateY(-2px); opacity: 1; }
+    }
+
+    @keyframes notesFlutter {
+      0%, 100% { transform: rotate(0deg) translateY(0); }
+      50% { transform: rotate(4deg) translateY(-1px); }
+    }
+  </style>
+
+  <g class="m-bob">
+    <path class="m-hair" d="M50 40 Q100 10 150 40 L140 60 Q100 35 60 60 Z" fill="#2C2C2C" />
+    <circle cx="100" cy="70" r="35" fill="#FFD8B1" />
+
+    <g class="m-goggles">
+      <circle cx="85" cy="70" r="15" fill="#E0E0E0" stroke="#333333" stroke-width="2" />
+      <circle cx="115" cy="70" r="15" fill="#E0E0E0" stroke="#333333" stroke-width="2" />
+      <rect x="98" y="68" width="4" height="4" rx="2" fill="#333333" />
+    </g>
+
+    <g class="m-eyes">
+      <circle cx="85" cy="70" r="5" fill="#333333" />
+      <circle cx="115" cy="70" r="5" fill="#333333" />
+    </g>
+
+    <rect x="60" y="100" width="80" height="70" rx="15" fill="#F5F5F5" />
+
+    <g class="m-beaker">
+      <rect x="85" y="120" width="30" height="40" rx="5" fill="#9B59B6" />
+      <circle class="m-bubble" cx="100" cy="115" r="10" fill="#9B59B6" />
+    </g>
+
+    <g class="m-notes">
+      <rect x="65" y="110" width="12" height="12" fill="#FFD700" />
+      <rect x="125" y="130" width="12" height="12" fill="#FF69B4" />
+    </g>
+  </g>
+</svg>

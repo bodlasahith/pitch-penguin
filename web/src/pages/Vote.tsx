@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import LeaderboardModal from '../components/LeaderboardModal'
+import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 
 type Pitch = {
   id: string
@@ -44,6 +45,10 @@ type JudgeResponse = {
 }
 
 export default function Vote() {
+  useEffect(() => {
+    playPhaseSound('vote')
+  }, [])
+
   const { code } = useParams()
   const navigate = useNavigate()
   const [pitches, setPitches] = useState<Pitch[]>([])
@@ -162,6 +167,7 @@ export default function Vote() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       })
+      playActionSound('start_round')
       navigate(`/deal`)
     } catch (err) {
       console.error(err)

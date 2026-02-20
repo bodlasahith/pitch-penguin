@@ -4,7 +4,7 @@ import { useAnimationTrigger, type MascotEvent } from '../hooks/useAnimationTrig
 export interface AnimatedMascotProps {
   src: string
   alt?: string
-  character?: string // 'blob' | 'chart' | 'gremlin' | 'penguin' | 'shark' | 'octopus' | 'llama' | 'hamster' | 'unicorn' | 'walrus' | 'rocket' | 'robot' | 'goblin' | 'raccoon'
+  character?: string // 'blob' | 'chart' | 'gremlin' | 'penguin' | 'shark' | 'octopus' | 'llama' | 'hamster' | 'unicorn' | 'walrus' | 'rocket' | 'robot' | 'goblin' | 'raccoon' | 'scientist'
   width?: string | number
   height?: string | number
   className?: string

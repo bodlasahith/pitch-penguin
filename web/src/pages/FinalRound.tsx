@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
 import { AnimatedMascot } from '../components/AnimatedMascot'
 import LeaderboardModal from '../components/LeaderboardModal'
+import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 
 type GameResponse = {
   ok: boolean
@@ -36,6 +37,10 @@ type Pitch = {
 }
 
 export default function FinalRound() {
+  useEffect(() => {
+    playPhaseSound('final-round')
+  }, [])
+
   const { code } = useParams()
   const navigate = useNavigate()
   
@@ -315,6 +320,7 @@ export default function FinalRound() {
       })
     })
     
+    playActionSound('submit_pitch')
     setIsLocked(true)
     await load()
   }, [roomCode, playerName, isLocked, selectedMustHaves, pitchTitle, pitchText, getSketchData, load])
@@ -348,6 +354,7 @@ export default function FinalRound() {
       })
     })
     
+    playActionSound('submit_pitch')
     setIsLocked(true)
     await load()
   }

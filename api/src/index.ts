@@ -136,8 +136,47 @@ const MASCOT_OPTIONS = cardsData.mascotOptions;
 const rooms = new Map<string, Room>();
 const roomGameStates = new Map<string, RoomGameState>();
 const roomPitches = new Map<string, Pitch[]>();
-const ROOM_CAPACITY = 8;
+const ROOM_CAPACITY = 14;
 const EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
+const DEAPI_BASE_URL = process.env.DEAPI_BASE_URL ?? "https://api.deapi.ai";
+const DEAPI_TTS_MODEL = process.env.DEAPI_TTS_MODEL ?? "Kokoro";
+const DEAPI_TTS_FORMAT = process.env.DEAPI_TTS_FORMAT ?? "mp3";
+const DEAPI_TTS_LANG = process.env.DEAPI_TTS_LANG ?? "en-us";
+const DEAPI_TTS_SAMPLE_RATE = Number(process.env.DEAPI_TTS_SAMPLE_RATE ?? "24000");
+const DEAPI_POLL_INTERVAL_MS = 1000;
+const DEAPI_MAX_POLL_ATTEMPTS = 15;
+const DEAPI_KOKORO_VOICE_IDS: Record<string, string> = {
+  adam: "am_adam",
+  alloy: "af_alloy",
+  aoede: "af_aoede",
+  bella: "af_bella",
+  echo: "am_echo",
+  eric: "am_eric",
+  fenrir: "am_fenrir",
+  heart: "af_heart",
+  jessica: "af_jessica",
+  kore: "af_kore",
+  liam: "am_liam",
+  michael: "am_michael",
+  nicole: "af_nicole",
+  nova: "af_nova",
+  onyx: "am_onyx",
+  puck: "am_puck",
+  river: "af_river",
+  santa: "am_santa",
+  sarah: "af_sarah",
+  sky: "af_sky",
+};
+const DEAPI_VOICE_BY_PROFILE: Record<string, string> = {
+  "game show host": "Heart",
+  "arcade ringleader": "am_puck",
+  "chaos commentator": "Nova",
+  "retro robot mc": "Onyx",
+  "neon announcer": "Heart",
+  "calm founder": "Onyx",
+  "buzzword bot": "Nova",
+  "wall street hype": "am_puck",
+};
 
 const getAvailableMascots = (room: Room, excludePlayerName?: string) => {
   const excluded = excludePlayerName?.toLowerCase().trim();
@@ -162,6 +201,162 @@ const shuffle = <T>(items: T[]) => {
 const getMustHaveBonus = (usedMustHaves?: string[]) => {
   const count = usedMustHaves?.length ?? 0;
   return Math.max(0, count - 1) * 0.25;
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const parseJsonSafely = async (response: { json: () => Promise<unknown> }) => {
+  try {
+    return (await response.json()) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+};
+
+const getNestedValue = (obj: Record<string, unknown>, path: string[]): unknown => {
+  let current: unknown = obj;
+  for (const key of path) {
+    if (!current || typeof current !== "object" || !(key in current)) {
+      return undefined;
+    }
+    current = (current as Record<string, unknown>)[key];
+  }
+  return current;
+};
+
+const getNestedString = (obj: Record<string, unknown>, path: string[]): string | null => {
+  const value = getNestedValue(obj, path);
+  if (typeof value !== "string") {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+};
+
+const normalizePitchTitle = (title?: string | null) => (title ?? "").trim().toLowerCase();
+const isUntitledPitchTitle = (title?: string | null) => normalizePitchTitle(title) === "untitled pitch";
+const stripEmojiForTts = (text: string) =>
+  text
+    .replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+
+const resolveDeapiVoice = (voiceId?: string, voiceProfile?: string) => {
+  const direct = voiceId?.trim();
+  if (direct) {
+    const lowered = direct.toLowerCase();
+    if (DEAPI_KOKORO_VOICE_IDS[lowered]) {
+      return DEAPI_KOKORO_VOICE_IDS[lowered];
+    }
+    if (/^[a-z0-9_:-]+$/i.test(direct)) {
+      return direct;
+    }
+  }
+  const normalizedProfile = voiceProfile?.trim().toLowerCase() ?? "";
+  if (normalizedProfile && DEAPI_VOICE_BY_PROFILE[normalizedProfile]) {
+    const mapped = DEAPI_VOICE_BY_PROFILE[normalizedProfile];
+    const lowered = mapped.toLowerCase();
+    return DEAPI_KOKORO_VOICE_IDS[lowered] ?? mapped;
+  }
+  const fallback = DEAPI_VOICE_BY_PROFILE["game show host"];
+  return DEAPI_KOKORO_VOICE_IDS[fallback.toLowerCase()] ?? fallback;
+};
+
+const generateDeapiTts = async (
+  apiKey: string,
+  text: string,
+  voice: string,
+): Promise<{ audio: Buffer; contentType: string }> => {
+  const sanitizedText = stripEmojiForTts(text);
+  const textForTts = sanitizedText || "No pitch provided.";
+  const createResponse = await fetch(`${DEAPI_BASE_URL}/api/v1/client/txt2audio`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      text: textForTts,
+      model: DEAPI_TTS_MODEL,
+      lang: DEAPI_TTS_LANG,
+      voice,
+      speed: 1,
+      format: DEAPI_TTS_FORMAT,
+      sample_rate: Number.isFinite(DEAPI_TTS_SAMPLE_RATE) ? DEAPI_TTS_SAMPLE_RATE : 24000,
+    }),
+  });
+
+  if (!createResponse.ok) {
+    const errorPayload = await parseJsonSafely(createResponse);
+    const message =
+      getNestedString(errorPayload, ["message"]) ??
+      getNestedString(errorPayload, ["error", "message"]) ??
+      "Failed to create TTS request";
+    throw new Error(message);
+  }
+
+  const createPayload = await parseJsonSafely(createResponse);
+  const requestId =
+    getNestedString(createPayload, ["data", "request_id"]) ??
+    getNestedString(createPayload, ["request_id"]);
+  if (!requestId) {
+    throw new Error("deAPI did not return request_id");
+  }
+
+  let resultUrl: string | null = null;
+  for (let attempt = 0; attempt < DEAPI_MAX_POLL_ATTEMPTS; attempt += 1) {
+    const statusResponse = await fetch(`${DEAPI_BASE_URL}/api/v1/client/request-status/${requestId}`, {
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    });
+    if (!statusResponse.ok) {
+      const statusPayload = await parseJsonSafely(statusResponse);
+      const statusMessage =
+        getNestedString(statusPayload, ["message"]) ??
+        getNestedString(statusPayload, ["error", "message"]) ??
+        "Failed to read TTS status";
+      throw new Error(statusMessage);
+    }
+
+    const statusPayload = await parseJsonSafely(statusResponse);
+    const statusRaw =
+      getNestedString(statusPayload, ["data", "status"]) ??
+      getNestedString(statusPayload, ["status"]) ??
+      "pending";
+    const status = statusRaw.toLowerCase();
+    resultUrl =
+      getNestedString(statusPayload, ["data", "result_url"]) ??
+      getNestedString(statusPayload, ["result_url"]) ??
+      getNestedString(statusPayload, ["data", "url"]) ??
+      getNestedString(statusPayload, ["url"]);
+
+    if ((status === "completed" || status === "success" || status === "done") && resultUrl) {
+      break;
+    }
+    if (status === "failed" || status === "error") {
+      const failureMessage =
+        getNestedString(statusPayload, ["data", "message"]) ??
+        getNestedString(statusPayload, ["message"]) ??
+        "deAPI TTS failed";
+      throw new Error(failureMessage);
+    }
+    await sleep(DEAPI_POLL_INTERVAL_MS);
+  }
+
+  if (!resultUrl) {
+    throw new Error("Timed out waiting for deAPI TTS audio");
+  }
+
+  const audioResponse = await fetch(resultUrl);
+  if (!audioResponse.ok) {
+    throw new Error("Failed to download generated TTS audio");
+  }
+
+  const audioArray = await audioResponse.arrayBuffer();
+  const audio = Buffer.from(audioArray);
+  const contentType = audioResponse.headers.get("content-type") ?? "audio/mpeg";
+  return { audio, contentType };
 };
 
 const getNextPhase = (current: GamePhase) => {
@@ -1164,6 +1359,46 @@ server.post("/api/room/:code/toggle-voice", async (request) => {
   };
 });
 
+server.post("/api/tts", async (request, reply) => {
+  const body = request.body as {
+    text?: string;
+    voiceProfile?: string;
+    voiceId?: string;
+  };
+  const text = body.text?.trim() ?? "";
+  if (!text) {
+    return {
+      ok: false,
+      message: "text is required",
+    };
+  }
+
+  const apiKey = process.env.DEAPI_KEY?.trim();
+  if (!apiKey) {
+    reply.code(500);
+    return {
+      ok: false,
+      message: "DEAPI_KEY is not configured",
+    };
+  }
+
+  const voice = resolveDeapiVoice(body.voiceId, body.voiceProfile);
+
+  try {
+    const result = await generateDeapiTts(apiKey, text, voice);
+    reply.header("Content-Type", result.contentType);
+    reply.header("Cache-Control", "no-store");
+    return result.audio;
+  } catch (err) {
+    request.log.error({ err }, "deAPI TTS failed");
+    reply.code(502);
+    return {
+      ok: false,
+      message: "Failed to generate TTS audio",
+    };
+  }
+});
+
 server.post("/api/room/:code/mascot", async (request) => {
   const { code } = request.params as { code: string };
   const body = request.body as { playerName?: string; mascot?: string };
@@ -1255,7 +1490,8 @@ server.post("/api/room/:code/pitch", async (request) => {
   const minMustHaves = isFinalRound ? 2 : 1;
   const hasMustHaves = usedMustHavesCount >= minMustHaves;
 
-  const isEmpty = !trimmedTitle || !trimmedSummary;
+  const isUntitledNoPitch = (!trimmedSummary && !trimmedTitle) || (!trimmedSummary && isUntitledPitchTitle(trimmedTitle));
+  const isEmpty = !trimmedTitle || !trimmedSummary || isUntitledNoPitch;
   const isValid = hasMustHaves && !isEmpty;
   const isDisqualified = !isValid;
   const pitch: Pitch = {
@@ -1434,9 +1670,12 @@ server.get("/api/room/:code/pitches", async (request) => {
   }
   const list = roomPitches.get(code) ?? [];
   const normalized = list.map((pitch) => {
+    const title = pitch.title?.trim() ?? "";
+    const summary = pitch.summary?.trim() ?? "";
+    const untitledNoPitch = (!summary && !title) || (!summary && isUntitledPitchTitle(title));
     const missingMustHaves = (pitch.usedMustHaves?.length ?? 0) === 0;
-    const missingContent = !pitch.title?.trim() || !pitch.summary?.trim();
-    const derivedDisqualified = missingMustHaves || missingContent;
+    const missingContent = !title || !summary;
+    const derivedDisqualified = missingMustHaves || missingContent || untitledNoPitch;
     const isDisqualified = pitch.isDisqualified ?? derivedDisqualified;
     return {
       ...pitch,

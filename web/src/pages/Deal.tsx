@@ -5,6 +5,7 @@ import { getMascotImage } from '../utils/mascots'
 import LeaderboardModal from '../components/LeaderboardModal'
 import { AnimatedMascot } from '../components/AnimatedMascot'
 import type { MascotEvent } from '../hooks/useAnimationTrigger'
+import { playPhaseSound } from '../utils/soundEffects'
 import walrusSVG from '../assets/walrus.svg'
 
 type GameResponse = {
@@ -43,6 +44,10 @@ export default function Deal() {
 
   const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
+
+  useEffect(() => {
+    playPhaseSound('deal')
+  }, [])
 
   const load = async () => {
     if (!roomCode) {

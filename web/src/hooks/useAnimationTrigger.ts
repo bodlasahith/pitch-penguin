@@ -73,6 +73,7 @@ const WIN_ANIMATIONS: Record<string, AnimationDefinition> = {
     secondary: ["walrus-winning", "walrus-monocle", "walrus-monocle-glint"],
   },
   octopus: { primary: "mascot-winner", secondary: ["octopus-winning"] },
+  scientist: { primary: "mascot-winner", secondary: ["scientist-winning", "scientist-spark"] },
 };
 
 const SELECT_ANIMATIONS: Record<string, AnimationDefinition> = {
@@ -90,6 +91,7 @@ const SELECT_ANIMATIONS: Record<string, AnimationDefinition> = {
   walrus: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "walrus-select"] },
   rocket: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "rocket-select"] },
   raccoon: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "raccoon-select"] },
+  scientist: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "scientist-select"] },
 };
 
 const PITCH_ANIMATIONS: Record<string, AnimationDefinition> = {
@@ -107,6 +109,7 @@ const PITCH_ANIMATIONS: Record<string, AnimationDefinition> = {
   walrus: { primary: "mascot-idle", secondary: ["walrus-presenting"] },
   rocket: { primary: "mascot-idle", secondary: ["rocket-presenting"] },
   raccoon: { primary: "mascot-idle", secondary: ["raccoon-presenting"] },
+  scientist: { primary: "mascot-idle", secondary: ["scientist-presenting"] },
 };
 
 const LOSE_ANIMATIONS: Record<string, AnimationDefinition> = {
@@ -124,6 +127,7 @@ const LOSE_ANIMATIONS: Record<string, AnimationDefinition> = {
   walrus: { primary: "mascot-lose-money", secondary: ["walrus-losing"] },
   rocket: { primary: "mascot-lose-money", secondary: ["rocket-losing"] },
   raccoon: { primary: "mascot-lose-money", secondary: ["raccoon-losing"] },
+  scientist: { primary: "mascot-lose-money", secondary: ["scientist-losing"] },
 };
 
 export function useAnimationTrigger(config: MascotAnimationConfig = {}) {

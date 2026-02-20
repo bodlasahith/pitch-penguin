@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { playActionSound } from '../utils/soundEffects'
 
 type HealthStatus = {
   ok: boolean
@@ -88,6 +89,7 @@ export default function Home() {
       localStorage.setItem(`bw:player:${data.room.code}`, trimmedName)
       localStorage.setItem('bw:lastRoom', data.room.code)
       localStorage.setItem('bw:lastName', trimmedName)
+      playActionSound('join_lobby')
       navigate(`/lobby/${data.room.code}`)
     } catch (err) {
       setRoomStatus('error')

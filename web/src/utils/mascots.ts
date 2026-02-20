@@ -11,6 +11,7 @@ import llamaSVG from "../assets/llama.svg";
 import hamsterSVG from "../assets/hamster.svg";
 import blobSVG from "../assets/blob.svg";
 import raccoonSVG from "../assets/raccoon.svg";
+import scientistSVG from "../assets/scientist.svg";
 
 export const MASCOT_MAP: Record<string, { name: string; svg: string }> = {
   rocket: { name: "Rocket CEO", svg: rocketSVG },
@@ -26,6 +27,7 @@ export const MASCOT_MAP: Record<string, { name: string; svg: string }> = {
   hamster: { name: "Hustler Hamster", svg: hamsterSVG },
   blob: { name: "Brainstorm Blob", svg: blobSVG },
   raccoon: { name: "Crypto Raccoon", svg: raccoonSVG },
+  scientist: { name: "Mad Scientist", svg: scientistSVG },
 };
 
 export function getMascotImage(mascotId: string | undefined): string | null {
@@ -52,6 +54,7 @@ const MASCOT_COLORS: Record<string, string> = {
   hamster: "#FFF1D6",
   blob: "#e2e1fa",
   raccoon: "#dbdbdb",
+  scientist: "#F5F1EA"
 };
 
 export function getMascotColor(mascotId: string | undefined): string {

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { playActionSound } from '../utils/soundEffects'
 
 export default function Join() {
   const navigate = useNavigate()
@@ -44,6 +45,7 @@ export default function Join() {
       localStorage.setItem(`bw:player:${trimmed}`, playerName)
       localStorage.setItem('bw:lastRoom', trimmed)
       localStorage.setItem('bw:lastName', playerName)
+      playActionSound('join_lobby')
       navigate(`/lobby/${trimmed}`)
     } catch (err) {
       setStatus('error')
@@ -79,6 +81,7 @@ export default function Join() {
         return
       }
       localStorage.setItem(`bw:player:${lastRoom}`, lastName)
+      playActionSound('join_lobby')
       navigate(`/lobby/${lastRoom}`)
     } catch (err) {
       setStatus('error')

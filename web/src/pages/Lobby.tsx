@@ -3,6 +3,12 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 import { AnimatedMascot } from '../components/AnimatedMascot'
 import type { MascotEvent } from '../hooks/useAnimationTrigger'
+import {
+  isSoundEffectsEnabled,
+  playActionSound,
+  playPhaseSound,
+  setSoundEffectsEnabled,
+} from '../utils/soundEffects'
 
 import rocketSVG from '../assets/rocket.svg'
 import chartSVG from '../assets/chart.svg'
@@ -17,6 +23,7 @@ import llamaSVG from '../assets/llama.svg'
 import hamsterSVG from '../assets/hamster.svg'
 import blobSVG from '../assets/blob.svg'
 import raccoonSVG from '../assets/raccoon.svg'
+import scientistSVG from '../assets/scientist.svg'
 
 type RoomResponse = {
   ok: boolean
@@ -50,7 +57,7 @@ export default function Lobby() {
   const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>(
     'idle'
   )
-  const [capacity, setCapacity] = useState(8)
+  const [capacity, setCapacity] = useState(14)
   const [leaveStatus, setLeaveStatus] = useState<'idle' | 'leaving' | 'error'>(
     'idle'
   )
@@ -61,6 +68,7 @@ export default function Lobby() {
   const [activityLog, setActivityLog] = useState<string[]>([])
   const [selectedMascot, setSelectedMascot] = useState('')
   const [hoveredMascot, setHoveredMascot] = useState<string | null>(null)
+  const [sfxEnabled, setSfxEnabled] = useState(isSoundEffectsEnabled())
   const previousPlayers = useRef<string[]>([])
   const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
   
@@ -77,8 +85,13 @@ export default function Lobby() {
     { name: 'Hyper Influencer Llama', id: 'llama', svg: llamaSVG },
     { name: 'Hustler Hamster', id: 'hamster', svg: hamsterSVG },
     { name: 'Brainstorm Blob', id: 'blob', svg: blobSVG },
-    { name: 'Crypto Raccoon', id: 'raccoon', svg: raccoonSVG }
+    { name: 'Crypto Raccoon', id: 'raccoon', svg: raccoonSVG },
+    { name: 'Mad Scientist (PhD)', id: 'scientist', svg: scientistSVG }
   ]
+
+  useEffect(() => {
+    playPhaseSound('lobby')
+  }, [])
 
   useEffect(() => {
     let refreshId: number | undefined
@@ -171,7 +184,7 @@ export default function Lobby() {
       if (current?.mascot) {
         setSelectedMascot(current.mascot)
       }
-      setCapacity(data.capacity ?? 8)
+      setCapacity(data.capacity ?? 14)
       setRoomStatus('ready')
     }
 
@@ -242,6 +255,15 @@ export default function Lobby() {
     })
   }
 
+  const handleSfxToggle = () => {
+    const nextValue = !sfxEnabled
+    setSfxEnabled(nextValue)
+    setSoundEffectsEnabled(nextValue)
+    if (nextValue) {
+      playPhaseSound('lobby')
+    }
+  }
+
   const handleMascotSelect = async (mascot: string) => {
     if (!code) {
       return
@@ -273,6 +295,7 @@ export default function Lobby() {
     })
     const data = (await response.json()) as { ok: boolean; phase?: string }
     if (data.ok && data.phase === 'deal') {
+      playActionSound('start_round')
       navigate(`/deal`)
     }
   }
@@ -481,7 +504,7 @@ export default function Lobby() {
           )}
         </div>
         <div className="panel">
-          <h3>Round settings</h3>
+          <h3>Game settings</h3>
           <ul className="list">
             <li>Pitch timer: 90 seconds</li>
             <li>
@@ -494,7 +517,16 @@ export default function Lobby() {
                 {robotVoiceEnabled ? 'Disable' : 'Enable'}
               </button>
             </li>
-            <li>Drawing pad: Enabled</li>
+            <li>
+              SFX: {sfxEnabled ? 'Enabled' : 'Disabled'}
+              <button
+                className="button secondary"
+                style={{ marginLeft: '12px' }}
+                onClick={handleSfxToggle}
+              >
+                {sfxEnabled ? 'Disable' : 'Enable'}
+              </button>
+            </li>
           </ul>
         </div>
         <div className="panel">

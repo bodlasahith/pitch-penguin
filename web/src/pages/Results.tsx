@@ -1,10 +1,11 @@
 import type { CSSProperties } from 'react'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 import { AnimatedMascot } from '../components/AnimatedMascot'
 import type { MascotEvent } from '../hooks/useAnimationTrigger'
 import LeaderboardModal from '../components/LeaderboardModal'
+import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 
 type Pitch = {
   id: string
@@ -50,6 +51,10 @@ type LastWinner = {
 }
 
 export default function Results() {
+  useEffect(() => {
+    playPhaseSound('results')
+  }, [])
+
   const { code } = useParams()
   const navigate = useNavigate()
   const [playerScores, setPlayerScores] = useState<Record<string, number>>({})
@@ -64,6 +69,7 @@ export default function Results() {
   const [truceActivated, setTruceActivated] = useState(false)
   const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
   const animationCycleKeyRef = useRef('')
+  const endGameSoundKeyRef = useRef('')
 
   const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
@@ -166,6 +172,19 @@ export default function Results() {
     return () => window.clearTimeout(timeout)
   }, [gameWinner, gameWinners, playerScores])
 
+  useEffect(() => {
+    const winnerKey = gameWinner
+      ? `single:${gameWinner}`
+      : gameWinners.length > 1 && !finalRoundNeeded
+        ? `co:${gameWinners.join(',')}`
+        : ''
+    if (!winnerKey || endGameSoundKeyRef.current === winnerKey) {
+      return
+    }
+    endGameSoundKeyRef.current = winnerKey
+    playActionSound('end_game')
+  }, [gameWinner, gameWinners, finalRoundNeeded])
+
   const handleLeave = () => {
     navigate(`/`)
   }
@@ -188,6 +207,7 @@ export default function Results() {
       })
       const data = (await response.json()) as { ok?: boolean; phase?: string; finalRoundStarted?: boolean }
       if (data.ok || data.phase) {
+        playActionSound('start_round')
         // Small delay to let server state propagate
         await new Promise(resolve => setTimeout(resolve, 500))
         
@@ -246,9 +266,52 @@ export default function Results() {
       <span style={{ fontWeight: 600 }}>{gameWinner}</span>
     </span>
   ) : null
+  const endGameCelebration = Boolean(gameWinner || (gameWinners.length > 1 && !finalRoundNeeded))
+  const confettiPalette = useMemo(() => {
+    if (gameWinner) {
+      return [getMascotColor(playerMascots[gameWinner])]
+    }
+    if (gameWinners.length > 1) {
+      const colors = gameWinners.map((winner) => getMascotColor(playerMascots[winner]))
+      return colors.length > 0 ? colors : ['#f5b544']
+    }
+    return ['#f5b544']
+  }, [gameWinner, gameWinners, playerMascots])
+  const confettiPieces = useMemo(
+    () =>
+      Array.from({ length: 80 }, (_, index) => ({
+        id: index,
+        left: Math.random() * 100,
+        delay: Math.random() * 0.9,
+        duration: 2.7 + Math.random() * 2.2,
+        drift: (Math.random() - 0.5) * 140,
+        rotate: Math.random() * 360,
+        color: confettiPalette[index % confettiPalette.length] ?? '#f5b544',
+      })),
+    [confettiPalette]
+  )
 
   return (
     <>
+      {endGameCelebration && (
+        <div className="confetti-overlay" aria-hidden>
+          {confettiPieces.map((piece) => (
+            <span
+              key={piece.id}
+              className="confetti-piece"
+              style={{
+                left: `${piece.left}%`,
+                top: '-12vh',
+                backgroundColor: piece.color,
+                animationDelay: `${piece.delay}s`,
+                animationDuration: `${piece.duration}s`,
+                ['--confetti-drift' as string]: `${piece.drift}px`,
+                rotate: `${piece.rotate}deg`,
+              }}
+            />
+          ))}
+        </div>
+      )}
       <section className="page-header">
         <div>
           <div className="eyebrow">Round {round + 1} Complete</div>

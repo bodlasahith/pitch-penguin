@@ -4,6 +4,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 import LeaderboardModal from '../components/LeaderboardModal'
 import { AnimatedMascot } from '../components/AnimatedMascot'
+import { buildNarrationText, normalizeKokoroVoiceName, selectSpeechVoice } from '../utils/voiceProfiles'
+import { fetchServerTtsAudio } from '../utils/ttsApi'
+import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 
 type Pitch = {
   id: string
@@ -52,7 +55,36 @@ type ChallengeResponse = {
   }
 }
 
+const normalizePitchTitle = (title?: string | null) => (title ?? '').trim().toLowerCase()
+const isUntitledPitch = (title?: string | null) => normalizePitchTitle(title) === 'untitled pitch'
+const isChallengeEligibleSubmission = (pitch?: Pitch) => {
+  if (!pitch) {
+    return false
+  }
+  const title = pitch.title?.trim() ?? ''
+  const summary = pitch.summary?.trim() ?? ''
+  const untitledNoPitch = (!summary && !title) || (!summary && isUntitledPitch(title))
+  if (untitledNoPitch) {
+    return false
+  }
+  return !pitch.isDisqualified && pitch.isValid !== false && Boolean(title) && Boolean(summary)
+}
+const isPitchDisqualified = (pitch?: Pitch | null) => {
+  if (!pitch) {
+    return false
+  }
+  const title = pitch.title?.trim() ?? ''
+  const summary = pitch.summary?.trim() ?? ''
+  const untitledNoPitch = (!summary && !title) || (!summary && isUntitledPitch(title))
+  const missingContent = !title || !summary
+  return Boolean(pitch.isDisqualified) || pitch.isValid === false || untitledNoPitch || missingContent
+}
+
 export default function Reveal() {
+  useEffect(() => {
+    playPhaseSound('reveal')
+  }, [])
+
   const { code } = useParams()
   const navigate = useNavigate()
   const [pitches, setPitches] = useState<Pitch[]>([])
@@ -67,6 +99,7 @@ export default function Reveal() {
   const [selectedWinnerId, setSelectedWinnerId] = useState<string | null>(null)
   const [showConfirm, setShowConfirm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [judgingError, setJudgingError] = useState('')
   const [challengeReveal, setChallengeReveal] = useState<ChallengeReveal | null>(null)
   const [showChallengeModal, setShowChallengeModal] = useState(false)
   const lastChallengeAt = useRef<string | null>(null)
@@ -75,9 +108,149 @@ export default function Reveal() {
   const [surpriseByPlayer, setSurpriseByPlayer] = useState<Record<string, string | null>>({})
   const [viewedPitchIds, setViewedPitchIds] = useState<string[]>([])
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
+  const [speakingPitchId, setSpeakingPitchId] = useState<string | null>(null)
+  const [loadingPitchId, setLoadingPitchId] = useState<string | null>(null)
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null)
+  const activeAudioUrlRef = useRef<string | null>(null)
+  const narrationTokenRef = useRef(0)
 
   const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
+
+  const stopNarration = () => {
+    narrationTokenRef.current += 1
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause()
+      activeAudioRef.current.src = ''
+      activeAudioRef.current = null
+    }
+    if (activeAudioUrlRef.current) {
+      URL.revokeObjectURL(activeAudioUrlRef.current)
+      activeAudioUrlRef.current = null
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    setLoadingPitchId(null)
+    setSpeakingPitchId(null)
+  }
+
+  const playBlobNarration = async (pitchId: string, audioBlob: Blob, token: number) => {
+    const audioUrl = URL.createObjectURL(audioBlob)
+    const audio = new Audio(audioUrl)
+    activeAudioRef.current = audio
+    activeAudioUrlRef.current = audioUrl
+    setSpeakingPitchId(pitchId)
+    setLoadingPitchId(null)
+    audio.onended = () => {
+      if (token === narrationTokenRef.current) {
+        setSpeakingPitchId(null)
+      }
+      if (activeAudioUrlRef.current) {
+        URL.revokeObjectURL(activeAudioUrlRef.current)
+        activeAudioUrlRef.current = null
+      }
+      activeAudioRef.current = null
+    }
+    audio.onerror = () => {
+      if (token === narrationTokenRef.current) {
+        setSpeakingPitchId(null)
+      }
+      if (activeAudioUrlRef.current) {
+        URL.revokeObjectURL(activeAudioUrlRef.current)
+        activeAudioUrlRef.current = null
+      }
+      activeAudioRef.current = null
+    }
+    await audio.play()
+  }
+
+  const speakPitch = async (pitch: Pitch | null) => {
+    if (!pitch) {
+      return
+    }
+
+    const synth =
+      typeof window !== 'undefined' && 'speechSynthesis' in window
+        ? window.speechSynthesis
+        : null
+    if (speakingPitchId === pitch.id || loadingPitchId === pitch.id) {
+      stopNarration()
+      return
+    }
+
+    stopNarration()
+    const narrationToken = narrationTokenRef.current
+    const selectedVoiceName = normalizeKokoroVoiceName(pitch.voice)
+    const narrationText = buildNarrationText(pitch.title, pitch.summary)
+    setLoadingPitchId(pitch.id)
+
+    try {
+      const serverAudio = await fetchServerTtsAudio({
+        text: narrationText,
+        voiceId: selectedVoiceName,
+      })
+      if (serverAudio && narrationToken === narrationTokenRef.current) {
+        await playBlobNarration(pitch.id, serverAudio, narrationToken)
+        return
+      }
+    } catch {
+      // Fall back to browser speech synthesis.
+    }
+
+    if (narrationToken !== narrationTokenRef.current) {
+      return
+    }
+
+    if (!synth) {
+      setLoadingPitchId(null)
+      alert('Voice playback is not available in this browser.')
+      return
+    }
+
+    synth.cancel()
+    const utterance = new SpeechSynthesisUtterance(narrationText)
+    const selectedVoice = selectSpeechVoice(synth.getVoices(), selectedVoiceName)
+    if (selectedVoice) {
+      utterance.voice = selectedVoice
+      utterance.lang = selectedVoice.lang
+    } else {
+      utterance.lang = 'en-US'
+    }
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.volume = 1
+    utterance.onstart = () => {
+      if (narrationToken !== narrationTokenRef.current) {
+        synth.cancel()
+        return
+      }
+      setLoadingPitchId(null)
+      setSpeakingPitchId(pitch.id)
+    }
+    utterance.onend = () => setSpeakingPitchId((activeId) => (activeId === pitch.id ? null : activeId))
+    utterance.onerror = () => {
+      setLoadingPitchId(null)
+      setSpeakingPitchId((activeId) => (activeId === pitch.id ? null : activeId))
+    }
+    synth.speak(utterance)
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return
+    }
+    const synth = window.speechSynthesis
+    const warmVoices = () => {
+      synth.getVoices()
+    }
+    warmVoices()
+    synth.addEventListener('voiceschanged', warmVoices)
+    return () => {
+      synth.removeEventListener('voiceschanged', warmVoices)
+      stopNarration()
+    }
+  }, [])
 
   useEffect(() => {
     let refreshId: number | undefined
@@ -175,6 +348,9 @@ export default function Reveal() {
     if (currentPitch.isValid === false || currentPitch.isDisqualified) {
       return
     }
+    if (!isChallengeEligibleSubmission(currentPlayerPitch)) {
+      return
+    }
     try {
       const response = await fetch(`/api/room/${roomCode}/challenge`, {
         method: 'POST',
@@ -187,6 +363,7 @@ export default function Reveal() {
       })
       const data = (await response.json()) as ChallengeResponse
       if (data.ok) {
+        playActionSound('ai_challenge')
         setChallengeStatus('sent')
         setChallenged(true)
         setCanChallenge(false)
@@ -199,6 +376,7 @@ export default function Reveal() {
   }
 
   const handleNext = () => {
+    stopNarration()
     const nextIndex = Math.min(currentIndex + 1, pitches.length - 1)
     setCurrentIndex(nextIndex)
     const nextPitch = pitches[nextIndex] ?? null
@@ -211,6 +389,7 @@ export default function Reveal() {
   }
 
   const handlePrevious = () => {
+    stopNarration()
     const nextIndex = Math.max(currentIndex - 1, 0)
     setCurrentIndex(nextIndex)
     const nextPitch = pitches[nextIndex] ?? null
@@ -243,8 +422,10 @@ export default function Reveal() {
   const currentPlayerPitch = playerName
     ? pitches.find((pitch) => pitch.player.toLowerCase() === playerName.toLowerCase())
     : undefined
-  const isPlayerDisqualified = Boolean(currentPlayerPitch?.isDisqualified)
-  const remainingCandidates = pitches.filter((pitch) => !pitch.isDisqualified).length
+  const isPlayerDisqualified = isPitchDisqualified(currentPlayerPitch)
+  const isCurrentPitchDisqualified = isPitchDisqualified(currentPitch)
+  const canSubmitChallenge = isChallengeEligibleSubmission(currentPlayerPitch)
+  const remainingCandidates = pitches.filter((pitch) => !isPitchDisqualified(pitch)).length
   const hideChallengePanel = remainingCandidates <= 1
 
   const markPitchViewed = async (pitchId: string) => {
@@ -287,15 +468,25 @@ export default function Reveal() {
               className="button secondary"
               aria-label="Play pitch audio"
               style={{ padding: '6px 10px', borderRadius: '10px' }}
+              onClick={() => {
+                void speakPitch(currentPitch)
+              }}
             >
-              🔊
+              {loadingPitchId === currentPitch?.id
+                ? '⏳'
+                : speakingPitchId === currentPitch?.id
+                  ? '⏹️'
+                  : '🔊'}
             </button>
           </div>
           <div className="card" style={{ marginTop: '12px' }}>
             <strong>{currentPitch?.title ?? 'Awaiting pitch'}</strong>
             <div style={{ marginTop: '8px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {currentPitch?.isDisqualified && (
+              {isCurrentPitchDisqualified && (
                 <span className="badge">Disqualified</span>
+              )}
+              {currentPitch?.voice && (
+                <span className="badge">{normalizeKokoroVoiceName(currentPitch.voice)}</span>
               )}
             </div>
             {currentPitch?.player && (
@@ -315,9 +506,9 @@ export default function Reveal() {
               </p>
             )}
             <span>{currentPitch?.summary ?? 'Pitch details loading.'}</span>
-            {currentPitch?.isDisqualified && (
+            {isCurrentPitchDisqualified && (
               <p style={{ marginTop: '8px', color: '#8c2d2a' }}>
-                Disqualified due to challenge.
+                This pitch is disqualified.
               </p>
             )}
             {currentPitch?.usedMustHaves && currentPitch.usedMustHaves.length > 0 && (
@@ -344,15 +535,15 @@ export default function Reveal() {
                 </button>
               )}
             </div>
-            {isWalrus && !currentPitch?.isDisqualified && (
+            {isWalrus && !isCurrentPitchDisqualified && (
               <button
                 className="button"
                 onClick={() => {
-                  if (currentPitch && currentPitch.isValid !== false && !currentPitch.isDisqualified) {
+                  if (currentPitch && !isPitchDisqualified(currentPitch)) {
                     setSelectedWinnerId(currentPitch.id)
                   }
                 }}
-                disabled={!currentPitch || currentPitch.isValid === false || currentPitch.isDisqualified}
+                disabled={!currentPitch || isPitchDisqualified(currentPitch)}
               >
                 {selectedWinnerId === currentPitch?.id ? 'Winner Selected' : 'Select Winner'}
               </button>
@@ -378,7 +569,7 @@ export default function Reveal() {
         </div>
       </section>
 
-      {!isWalrus && !isOwnPitch && !isPlayerDisqualified && !hideChallengePanel && (
+      {!isWalrus && !isOwnPitch && !isPlayerDisqualified && canSubmitChallenge && !hideChallengePanel && (
         <section className="panel">
           <h3>AI Challenge</h3>
           <p>
@@ -428,12 +619,25 @@ export default function Reveal() {
           <div className="footer-actions" style={{ marginTop: '16px' }}>
             <button
               className="button"
-              onClick={() => setShowConfirm(true)}
-              disabled={!selectedWinnerId || !allViewed}
+              onClick={() => {
+                if (!selectedWinnerId) {
+                  setJudgingError('Select a winning pitch before completing judging.')
+                  return
+                }
+                if (!allViewed) {
+                  setJudgingError('Review all pitches before completing judging.')
+                  return
+                }
+                setJudgingError('')
+                setShowConfirm(true)
+              }}
             >
               Complete Judging
             </button>
           </div>
+          {judgingError && (
+            <p style={{ marginTop: '10px', color: '#8c2d2a' }}>{judgingError}</p>
+          )}
           {selectedWinner && (
             <div style={{ marginTop: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -479,19 +683,20 @@ export default function Reveal() {
                     : '1px solid rgba(70, 60, 50, 0.12)',
                 cursor: isWalrus ? 'pointer' : 'default',
                 opacity:
-                  pitch.isValid === false || pitch.isDisqualified ? 0.5 : 1,
+                  isPitchDisqualified(pitch) ? 0.5 : 1,
                 display: 'grid',
                 gridTemplateColumns: '52px 1fr',
                 gap: '12px',
                 boxShadow: '0 6px 14px rgba(40, 30, 20, 0.08)'
               }}
               onClick={() => {
+                stopNarration()
                 setCurrentIndex(index)
                 setCurrentPitch(pitch)
                 if (isWalrus) {
                   void markPitchViewed(pitch.id)
                 }
-                if (isWalrus && pitch.isValid !== false && !pitch.isDisqualified) {
+                if (isWalrus && !isPitchDisqualified(pitch)) {
                   setSelectedWinnerId(pitch.id)
                 }
               }}
@@ -524,7 +729,7 @@ export default function Reveal() {
                   <span style={{ fontSize: '0.85rem', color: '#6b6056' }}>
                     {getMascotName(playerMascots[pitch.player]) ?? 'Mascot'}
                   </span>
-                  {pitch.isDisqualified && (
+                  {isPitchDisqualified(pitch) && (
                     <span className="badge">Disqualified</span>
                   )}
                 </div>

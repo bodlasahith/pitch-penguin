@@ -1,10 +1,18 @@
 import type { CSSProperties, PointerEvent } from 'react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
 import { AnimatedMascot } from '../components/AnimatedMascot'
 import LeaderboardModal from '../components/LeaderboardModal'
 import type { MascotEvent } from '../hooks/useAnimationTrigger'
+import {
+  buildNarrationText,
+  KOKORO_VOICES,
+  normalizeKokoroVoiceName,
+  selectSpeechVoice,
+} from '../utils/voiceProfiles'
+import { fetchServerTtsAudio } from '../utils/ttsApi'
+import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 
 type GameResponse = {
   ok: boolean
@@ -34,6 +42,10 @@ type PitchesResponse = {
 }
 
 export default function Pitch() {
+  useEffect(() => {
+    playPhaseSound('pitch')
+  }, [])
+
   const { code } = useParams()
   const navigate = useNavigate()
   const [selectedAsk, setSelectedAsk] = useState<string | null>(null)
@@ -45,7 +57,8 @@ export default function Pitch() {
   const [pitchText, setPitchText] = useState('')
   const [pitchTitle, setPitchTitle] = useState('')
   const [selectedMustHaves, setSelectedMustHaves] = useState<string[]>([])
-  const [voice, setVoice] = useState('Neon Announcer')
+  const voiceOptions = useMemo(() => [...KOKORO_VOICES], [])
+  const [voice, setVoice] = useState<string>(voiceOptions[0] ?? 'Heart')
   const [pitchEndsAt, setPitchEndsAt] = useState<number | null>(null)
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const [clockOffsetMs, setClockOffsetMs] = useState(0)
@@ -66,6 +79,11 @@ export default function Pitch() {
   const [brushColor, setBrushColor] = useState('#2e2a27')
   const [brushSize, setBrushSize] = useState(6)
   const [isEraser, setIsEraser] = useState(false)
+  const [isPreviewingVoice, setIsPreviewingVoice] = useState(false)
+  const [isPreparingVoicePreview, setIsPreparingVoicePreview] = useState(false)
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null)
+  const voicePreviewCacheRef = useRef<Map<string, string>>(new Map())
+  const previewTokenRef = useRef(0)
 
   const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
@@ -186,6 +204,9 @@ export default function Pitch() {
         status
       })
     })
+    if (status === 'ready') {
+      playActionSound('submit_pitch')
+    }
     await load()
   }
 
@@ -259,6 +280,114 @@ export default function Pitch() {
     setGeneratedPitch(null)
   }
 
+  const stopVoicePreview = () => {
+    previewTokenRef.current += 1
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause()
+      previewAudioRef.current.src = ''
+      previewAudioRef.current = null
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    setIsPreparingVoicePreview(false)
+    setIsPreviewingVoice(false)
+  }
+
+  const playPreviewAudio = async (audioUrl: string, token: number) => {
+    const audio = new Audio(audioUrl)
+    previewAudioRef.current = audio
+    setIsPreparingVoicePreview(false)
+    setIsPreviewingVoice(true)
+    audio.onended = () => {
+      if (token === previewTokenRef.current) {
+        setIsPreviewingVoice(false)
+      }
+      previewAudioRef.current = null
+    }
+    audio.onerror = () => {
+      if (token === previewTokenRef.current) {
+        setIsPreviewingVoice(false)
+      }
+      previewAudioRef.current = null
+    }
+    await audio.play()
+  }
+
+  const handlePreviewVoice = async () => {
+    const synth =
+      typeof window !== 'undefined' && 'speechSynthesis' in window
+        ? window.speechSynthesis
+        : null
+    if (isPreviewingVoice || isPreparingVoicePreview) {
+      stopVoicePreview()
+      return
+    }
+
+    stopVoicePreview()
+    const previewToken = previewTokenRef.current
+    const selectedVoiceName = normalizeKokoroVoiceName(voice)
+    const previewText = buildNarrationText(
+      'Voice preview',
+      'Investors, this is your Kokoro voice test. Big idea. Big energy. Big finish.',
+    )
+    const cachedPreviewUrl = voicePreviewCacheRef.current.get(selectedVoiceName)
+    if (cachedPreviewUrl) {
+      await playPreviewAudio(cachedPreviewUrl, previewToken)
+      return
+    }
+
+    setIsPreparingVoicePreview(true)
+    try {
+      const serverAudio = await fetchServerTtsAudio({
+        text: previewText,
+        voiceId: selectedVoiceName,
+      })
+      if (serverAudio && previewToken === previewTokenRef.current) {
+        const cachedUrl = URL.createObjectURL(serverAudio)
+        voicePreviewCacheRef.current.set(selectedVoiceName, cachedUrl)
+        await playPreviewAudio(cachedUrl, previewToken)
+        return
+      }
+    } catch {
+      // Fall back to browser speech synthesis.
+    }
+
+    if (previewToken !== previewTokenRef.current) {
+      return
+    }
+
+    if (!synth) {
+      setIsPreparingVoicePreview(false)
+      alert('Voice preview is not available in this browser.')
+      return
+    }
+
+    setIsPreparingVoicePreview(false)
+    synth.cancel()
+    const utterance = new SpeechSynthesisUtterance(previewText)
+    const selectedVoice = selectSpeechVoice(synth.getVoices(), selectedVoiceName)
+    if (selectedVoice) {
+      utterance.voice = selectedVoice
+      utterance.lang = selectedVoice.lang
+    } else {
+      utterance.lang = 'en-US'
+    }
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.volume = 1
+    utterance.onstart = () => {
+      if (previewToken !== previewTokenRef.current) {
+        synth.cancel()
+        return
+      }
+      setIsPreviewingVoice(true)
+    }
+    utterance.onend = () => setIsPreviewingVoice(false)
+    utterance.onerror = () => setIsPreviewingVoice(false)
+    synth.speak(utterance)
+  }
+
   const isWalrus = walrus && playerName && walrus.toLowerCase() === playerName.toLowerCase()
   const playerStatus = playerName ? pitchStatuses[playerName] : undefined
   const isLocked = playerStatus === 'ready'
@@ -302,6 +431,24 @@ export default function Pitch() {
       })
     previousStatusesRef.current = pitchStatuses
   }, [pitchStatuses, walrus])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return
+    }
+    const synth = window.speechSynthesis
+    const warmVoices = () => {
+      synth.getVoices()
+    }
+    warmVoices()
+    synth.addEventListener('voiceschanged', warmVoices)
+    return () => {
+      synth.removeEventListener('voiceschanged', warmVoices)
+      stopVoicePreview()
+      voicePreviewCacheRef.current.forEach((url) => URL.revokeObjectURL(url))
+      voicePreviewCacheRef.current.clear()
+    }
+  }, [])
 
   const canvasBg = '#fffaf1'
 
@@ -512,7 +659,7 @@ export default function Pitch() {
               </div>
             )}
             <div style={{ marginTop: '14px' }}>
-              <strong>Select MUST HAVEs (use at least 1)</strong>
+              <strong>Select MUST HAVEs (use at least 1 of 4)</strong>
               <ul className="list" style={{ marginTop: '8px' }}>
                 {mustHaves.map((card) => (
                   <li key={card}>
@@ -565,11 +712,26 @@ export default function Pitch() {
               onChange={(event) => setVoice(event.target.value)}
               style={{ marginBottom: '12px' }}
             >
-              <option>Neon Announcer</option>
-              <option>Calm Founder</option>
-              <option>Buzzword Bot</option>
-              <option>Wall Street Hype</option>
+              {voiceOptions.map((option) => (
+                <option key={option}>{option}</option>
+              ))}
             </select>
+            <div className="footer-actions" style={{ marginBottom: '12px' }}>
+              <button
+                type="button"
+                className="button secondary"
+                onClick={() => {
+                  void handlePreviewVoice()
+                }}
+                disabled={!robotVoiceEnabled}
+              >
+                {isPreparingVoicePreview
+                  ? 'Loading Preview...'
+                  : isPreviewingVoice
+                    ? 'Stop Voice Preview'
+                    : 'Preview Voice'}
+              </button>
+            </div>
             <div className="card">
               <strong>💡 Pro Tip</strong>
               <span>Short punchy sentences sound better read aloud by robots.</span>
