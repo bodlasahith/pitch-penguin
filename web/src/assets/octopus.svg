@@ -1,26 +1,39 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="100" cy="90" r="40" fill="#FF70A6"/>
-  <!-- Eyes -->
-  <ellipse cx="85" cy="85" rx="8" ry="10" fill="white"/>
-  <ellipse cx="115" cy="85" rx="8" ry="10" fill="white"/>
-  <circle cx="85" cy="88" r="5" fill="#222"/>
-  <circle cx="115" cy="88" r="5" fill="#222"/>
-  <circle cx="87" cy="84" r="2" fill="white"/>
-  <circle cx="117" cy="84" r="2" fill="white"/>
-
-  <!-- Smile -->
-  <path d="M85 105 Q100 120 115 105" stroke="black" stroke-width="3" fill="none"/>
-  <!-- Head highlight -->
-  <ellipse cx="110" cy="70" rx="12" ry="8" fill="white" opacity="0.35"/>
-  <!-- Arms with suction details -->
-  <path d="M60 130 Q40 160 70 170" stroke="#FF70A6" stroke-width="8" fill="none"/>
-  <path d="M80 130 Q70 170 100 170" stroke="#FF70A6" stroke-width="8" fill="none"/>
-  <path d="M120 130 Q130 170 100 170" stroke="#FF70A6" stroke-width="8" fill="none"/>
-  <path d="M140 130 Q160 160 130 170" stroke="#FF70A6" stroke-width="8" fill="none"/>
-  <circle cx="66" cy="160" r="3" fill="#F8B1C8"/>
-  <circle cx="76" cy="166" r="3" fill="#F8B1C8"/>
-  <circle cx="88" cy="164" r="3" fill="#F8B1C8"/>
-  <circle cx="112" cy="164" r="3" fill="#F8B1C8"/>
-  <circle cx="124" cy="166" r="3" fill="#F8B1C8"/>
-  <circle cx="134" cy="160" r="3" fill="#F8B1C8"/>
+  <style>
+    .m-head { animation: bob 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-eye { animation: blink 5.1s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-arm-l { animation: armLeft 1.7s ease-in-out infinite; transform-box: fill-box; transform-origin: 70px 130px; }
+    .m-arm-r { animation: armRight 1.7s ease-in-out infinite; transform-box: fill-box; transform-origin: 130px 130px; }
+    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes blink { 0%,47%,53%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.08); } }
+    @keyframes armLeft { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes armRight { 0%,100% { transform: translateY(0); } 50% { transform: translateY(2px); } }
+  </style>
+  <g class="m-head">
+    <circle cx="100" cy="90" r="40" fill="#FF70A6"/>
+    <g class="m-eye">
+      <ellipse cx="85" cy="85" rx="8" ry="10" fill="white"/>
+      <ellipse cx="115" cy="85" rx="8" ry="10" fill="white"/>
+      <circle cx="85" cy="88" r="5" fill="#222"/>
+      <circle cx="115" cy="88" r="5" fill="#222"/>
+      <circle cx="87" cy="84" r="2" fill="white"/>
+      <circle cx="117" cy="84" r="2" fill="white"/>
+    </g>
+    <path d="M85 105 Q100 120 115 105" stroke="black" stroke-width="3" fill="none"/>
+    <ellipse cx="110" cy="70" rx="12" ry="8" fill="white" opacity="0.35"/>
+  </g>
+  <g class="m-arm-l">
+    <path d="M60 130 Q40 160 70 170" stroke="#FF70A6" stroke-width="8" fill="none"/>
+    <path d="M80 130 Q70 170 100 170" stroke="#FF70A6" stroke-width="8" fill="none"/>
+    <circle cx="66" cy="160" r="3" fill="#F8B1C8"/>
+    <circle cx="76" cy="166" r="3" fill="#F8B1C8"/>
+    <circle cx="88" cy="164" r="3" fill="#F8B1C8"/>
+  </g>
+  <g class="m-arm-r">
+    <path d="M120 130 Q130 170 100 170" stroke="#FF70A6" stroke-width="8" fill="none"/>
+    <path d="M140 130 Q160 160 130 170" stroke="#FF70A6" stroke-width="8" fill="none"/>
+    <circle cx="112" cy="164" r="3" fill="#F8B1C8"/>
+    <circle cx="124" cy="166" r="3" fill="#F8B1C8"/>
+    <circle cx="134" cy="160" r="3" fill="#F8B1C8"/>
+  </g>
 </svg>

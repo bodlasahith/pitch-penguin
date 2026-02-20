@@ -1,27 +1,38 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <!-- Main blob body -->
-  <path d="M60 100 Q50 60 90 60 Q120 40 140 70 Q170 80 150 120 Q130 150 90 150 Q60 140 60 100"
-        fill="#90DBF4"/>
-  <!-- Blob arms/nubs -->
-  <ellipse cx="50" cy="110" rx="12" ry="8" fill="#7BC4DC"/>
-  <ellipse cx="160" cy="100" rx="12" ry="8" fill="#7BC4DC"/>
-  <!-- Corporate tie -->
-  <polygon points="105,125 110,125 115,160 105,155 95,160 100,125" fill="#1E3A8A"/>
-  <rect x="98" y="115" width="14" height="12" rx="2" fill="#1E3A8A"/>
-  <!-- Eyes with detail -->
-  <ellipse cx="85" cy="80" rx="10" ry="12" fill="white"/>
-  <ellipse cx="120" cy="80" rx="10" ry="12" fill="white"/>
-  <circle cx="85" cy="82" r="6" fill="black"/>
-  <circle cx="120" cy="82" r="6" fill="black"/>
-  <circle cx="87" cy="79" r="2.5" fill="white"/>
-  <circle cx="122" cy="79" r="2.5" fill="white"/>
-  <!-- Corporate glasses -->
-  <rect x="72" y="75" width="20" height="15" rx="3" fill="none" stroke="#333" stroke-width="2"/>
-  <rect x="113" y="75" width="20" height="15" rx="3" fill="none" stroke="#333" stroke-width="2"/>
-  <line x1="92" y1="82" x2="113" y2="82" stroke="#333" stroke-width="2"/>
-  <!-- Happy smile -->
-  <path d="M90 105 Q105 117 120 105" stroke="black" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <!-- Blob highlight for dimension -->
-  <ellipse cx="110" cy="65" rx="15" ry="10" fill="white" opacity="0.3"/>
+  <style>
+    .m-bob { animation: blobBob 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-eye { animation: blink 4.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-tie { animation: tieBob 2.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-hand-l { animation: handWaveL 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-hand-r { animation: handWaveR 1.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-mouth { animation: smilePulse 2.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    @keyframes blobBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes blink { 0%,46%,52%,100% { transform: scaleY(1); } 49% { transform: scaleY(0.08); } }
+    @keyframes tieBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+    @keyframes handWaveL { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+    @keyframes handWaveR { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+    @keyframes smilePulse { 0%,100% { transform: translateY(0); } 50% { transform: translateY(1px) scaleX(1.06); } }
+  </style>
+  <g class="m-bob">
+    <path d="M60 100 Q50 60 90 60 Q120 40 140 70 Q170 80 150 120 Q130 150 90 150 Q60 140 60 100" fill="#90DBF4"/>
+    <ellipse class="m-hand-l" cx="50" cy="110" rx="12" ry="8" fill="#7BC4DC"/>
+    <ellipse class="m-hand-r" cx="160" cy="100" rx="12" ry="8" fill="#7BC4DC"/>
+    <g class="m-tie">
+      <polygon points="105,125 110,125 115,160 105,155 95,160 100,125" fill="#1E3A8A"/>
+      <rect x="98" y="115" width="14" height="12" rx="2" fill="#1E3A8A"/>
+    </g>
+    <g class="m-eye">
+      <ellipse cx="85" cy="80" rx="10" ry="12" fill="white"/>
+      <ellipse cx="120" cy="80" rx="10" ry="12" fill="white"/>
+      <circle cx="85" cy="82" r="6" fill="black"/>
+      <circle cx="120" cy="82" r="6" fill="black"/>
+      <circle cx="87" cy="79" r="2.5" fill="white"/>
+      <circle cx="122" cy="79" r="2.5" fill="white"/>
+    </g>
+    <rect x="72" y="75" width="20" height="15" rx="3" fill="none" stroke="#333" stroke-width="2"/>
+    <rect x="113" y="75" width="20" height="15" rx="3" fill="none" stroke="#333" stroke-width="2"/>
+    <line x1="92" y1="82" x2="113" y2="82" stroke="#333" stroke-width="2"/>
+    <path class="m-mouth" d="M90 105 Q105 117 120 105" stroke="black" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <ellipse cx="110" cy="65" rx="15" ry="10" fill="white" opacity="0.3"/>
+  </g>
 </svg>
-

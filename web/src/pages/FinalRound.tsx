@@ -2,6 +2,7 @@ import type { CSSProperties, PointerEvent } from 'react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
+import { AnimatedMascot } from '../components/AnimatedMascot'
 import LeaderboardModal from '../components/LeaderboardModal'
 
 type GameResponse = {
@@ -636,10 +637,12 @@ export default function FinalRound() {
                     >
                       {playerMascots[name] && (
                         <span style={mascotBadgeStyle}>
-                          <img
+                          <AnimatedMascot
                             src={getMascotImage(playerMascots[name]) ?? ''}
-                            alt=""
-                            style={{ width: '18px', height: '18px' }}
+                            alt={playerMascots[name]}
+                            character={playerMascots[name]}
+                            width="18px"
+                            height="18px"
                           />
                         </span>
                       )}

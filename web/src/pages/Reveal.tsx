@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 import LeaderboardModal from '../components/LeaderboardModal'
+import { AnimatedMascot } from '../components/AnimatedMascot'
 
 type Pitch = {
   id: string
@@ -302,9 +303,10 @@ export default function Reveal() {
                 <span>By</span>
                 {playerMascots[currentPitch.player] && (
                   <span style={mascotBadgeStyle}>
-                    <img
+                    <AnimatedMascot
                       src={getMascotImage(playerMascots[currentPitch.player]) ?? ''}
                       alt=""
+                      character={playerMascots[currentPitch.player]}
                       style={{ width: '18px', height: '18px' }}
                     />
                   </span>
@@ -438,10 +440,12 @@ export default function Reveal() {
                 <strong>Selected Winner:</strong>
                 {playerMascots[selectedWinner.player] && (
                   <span style={mascotBadgeStyle}>
-                    <img
+                    <AnimatedMascot
                       src={getMascotImage(playerMascots[selectedWinner.player]) ?? ''}
-                      alt=""
-                      style={{ width: '18px', height: '18px' }}
+                      alt={playerMascots[selectedWinner.player]}
+                      character={playerMascots[selectedWinner.player]}
+                      width="18px"
+                      height="18px"
                     />
                   </span>
                 )}
@@ -505,10 +509,12 @@ export default function Reveal() {
                 }}
               >
                 {playerMascots[pitch.player] && (
-                  <img
+                  <AnimatedMascot
                     src={getMascotImage(playerMascots[pitch.player]) ?? ''}
-                    alt=""
-                    style={{ width: '34px', height: '34px' }}
+                    alt={playerMascots[pitch.player]}
+                    character={playerMascots[pitch.player]}
+                    width="34px"
+                    height="34px"
                   />
                 )}
               </div>
@@ -540,10 +546,12 @@ export default function Reveal() {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                 {playerMascots[selectedWinner.player] && (
                   <span style={mascotBadgeStyle}>
-                    <img
+                    <AnimatedMascot
                       src={getMascotImage(playerMascots[selectedWinner.player]) ?? ''}
-                      alt=""
-                      style={{ width: '18px', height: '18px' }}
+                      alt={playerMascots[selectedWinner.player]}
+                      character={playerMascots[selectedWinner.player]}
+                      width="18px"
+                      height="18px"
                     />
                   </span>
                 )}

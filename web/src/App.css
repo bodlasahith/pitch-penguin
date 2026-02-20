@@ -410,3 +410,788 @@
     opacity: 0.7;
   }
 }
+
+/* ============================================
+   MASCOT ANIMATION SYSTEM
+   Game event triggers + character reactions
+   ============================================ */
+
+/* 🟢 LOBBY - Mascot Selection */
+@keyframes selectBounce {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.12) translateY(-8px);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes selectGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 8px rgba(76, 175, 80, 0.1);
+  }
+}
+
+@keyframes deselectFade {
+  from {
+    opacity: 1;
+    filter: grayscale(0%);
+    transform: scale(1);
+  }
+  to {
+    opacity: 0.6;
+    filter: grayscale(60%);
+    transform: scale(0.95);
+  }
+}
+
+.mascot-selected {
+  animation: selectBounce 600ms cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.mascot-selected-glow {
+  animation: selectGlowPulse 1.5s ease-in-out infinite;
+}
+
+.mascot-deselected {
+  animation: deselectFade 300ms ease-out forwards;
+}
+
+/* 🏆 WINNING A ROUND - Big Victory */
+@keyframes winBounce {
+  0% {
+    transform: scale(1) translateY(0);
+  }
+  25% {
+    transform: scaleY(0.9) scaleX(1.1) translateY(0);
+  }
+  50% {
+    transform: scale(1.15) translateY(-25px);
+  }
+  75% {
+    transform: scale(1.08) translateY(-8px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes winGlowBurst {
+  0% {
+    filter: drop-shadow(0 0 0 rgba(255, 193, 7, 0));
+    opacity: 1;
+  }
+  50% {
+    filter: drop-shadow(0 0 20px rgba(255, 193, 7, 0.8));
+  }
+  100% {
+    filter: drop-shadow(0 0 0 rgba(255, 193, 7, 0));
+    opacity: 1;
+  }
+}
+
+@keyframes winShineSwipe {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.mascot-winner {
+  animation: winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+.mascot-winner-glow {
+  animation: winGlowBurst 1.2s ease-out;
+}
+
+/* 💸 LOSING MONEY - Dramatic Shake */
+@keyframes loseMoney {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  10% {
+    transform: translateX(-6px) scale(1);
+  }
+  20% {
+    transform: translateX(6px) scale(1);
+  }
+  30% {
+    transform: translateX(-4px) scale(1);
+  }
+  40% {
+    transform: translateX(4px) scale(1);
+  }
+  50% {
+    transform: translateX(0) scale(0.95);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes eyesWide {
+  0%, 100% {
+    r: 5;
+  }
+  50% {
+    r: 6.5;
+  }
+}
+
+.mascot-lose-money {
+  animation: loseMoney 800ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* 🏁 FINAL ROUND ENTRY - Cinematic */
+@keyframes finalRoundZoom {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes finalRoundSpotlight {
+  from {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.4);
+  }
+  to {
+    box-shadow: 0 0 40px 20px rgba(255, 193, 7, 0.1);
+  }
+}
+
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+.mascot-final-round {
+  animation: finalRoundZoom 1s ease-out, breathe 3s ease-in-out infinite 1s;
+}
+
+.mascot-final-round-spotlight {
+  animation: finalRoundSpotlight 1.5s ease-out;
+}
+
+/* Idle breathing loop */
+.mascot-idle {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+/* Make mascot motion more readable in game phases */
+@keyframes mascotHaloPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(212, 165, 116, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(212, 165, 116, 0.08);
+  }
+}
+
+.phase-mascot-wrap {
+  position: relative;
+  overflow: visible;
+}
+
+.phase-mascot-wrap::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 999px;
+  pointer-events: none;
+  animation: mascotHaloPulse 1.8s ease-in-out infinite;
+}
+
+.phase-mascot-wrap--deal::after {
+  animation-duration: 1.5s;
+}
+
+.phase-mascot-wrap--pitch::after {
+  animation-duration: 1.2s;
+}
+
+.phase-mascot-wrap--results::after {
+  animation-duration: 1s;
+}
+
+.phase-mascot {
+  filter: drop-shadow(0 2px 6px rgba(59, 42, 21, 0.35)) saturate(1.08);
+}
+
+/* Event/state-specific mascot motion hooks */
+@keyframes selectPop {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12) translateY(-3px); }
+}
+@keyframes selectSkew {
+  0%, 100% { transform: skewX(0deg) scale(1); }
+  50% { transform: skewX(-8deg) scale(1.08); }
+}
+@keyframes selectScan {
+  0%, 100% { transform: rotate(0deg) scale(1); filter: brightness(1); }
+  50% { transform: rotate(-4deg) scale(1.08); filter: brightness(1.25); }
+}
+@keyframes selectLunge {
+  0%, 100% { transform: translateX(0) scale(1); }
+  50% { transform: translateX(5px) scale(1.1); }
+}
+@keyframes selectSneak {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  50% { transform: translateX(-3px) rotate(-5deg); }
+}
+
+@keyframes presentBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.07); }
+}
+@keyframes presentSubtle {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-1px) scale(1.02); }
+}
+@keyframes presentJitter {
+  0%, 20%, 40%, 60%, 80%, 100% { transform: translate(0, 0) rotate(0deg); }
+  10% { transform: translate(-1px, -1px) rotate(-2deg); }
+  30% { transform: translate(1px, 0) rotate(1deg); }
+  50% { transform: translate(-1px, 1px) rotate(-1deg); }
+  70% { transform: translate(1px, -1px) rotate(2deg); }
+  90% { transform: translate(0, 1px) rotate(-1deg); }
+}
+@keyframes presentAggro {
+  0%, 100% { transform: translateX(0) scale(1); }
+  35% { transform: translateX(4px) scale(1.09); }
+  70% { transform: translateX(-2px) scale(1.03); }
+}
+@keyframes presentFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(3deg); }
+}
+
+@keyframes loseDrop {
+  0%, 100% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  50% { transform: translateY(4px) rotate(4deg); opacity: 0.82; }
+}
+@keyframes loseShake {
+  0%, 100% { transform: translateX(0); opacity: 1; }
+  20% { transform: translateX(-3px); }
+  40% { transform: translateX(3px); }
+  60% { transform: translateX(-2px); opacity: 0.86; }
+  80% { transform: translateX(2px); }
+}
+@keyframes loseFade {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(0.92) translateY(2px); opacity: 0.72; }
+}
+
+.blob-select { animation: selectPop 550ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.chart-select { animation: selectPop 520ms cubic-bezier(0.22, 1, 0.36, 1); }
+.gremlin-select { animation: presentJitter 500ms steps(2, jump-none); }
+.penguin-select { animation: presentSubtle 650ms ease-out; }
+.goblin-select { animation: selectSkew 520ms ease-out; }
+.robot-select { animation: selectScan 520ms ease-out; }
+.unicorn-select { animation: selectPop 600ms ease-out; filter: saturate(1.2); }
+.shark-select { animation: selectLunge 430ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.octopus-select { animation: presentFloat 600ms ease-out; }
+.llama-select { animation: selectSkew 560ms cubic-bezier(0.22, 1, 0.36, 1); }
+.hamster-select { animation: selectPop 500ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.walrus-select { animation: presentSubtle 620ms ease-out; }
+.rocket-select { animation: selectLunge 500ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.raccoon-select { animation: selectSneak 560ms ease-out; }
+
+.blob-presenting { animation: presentBounce 1s ease-in-out infinite; }
+.chart-presenting { animation: presentFloat 1.2s ease-in-out infinite; }
+.gremlin-presenting { animation: presentJitter 0.65s steps(2, jump-none) infinite; }
+.penguin-presenting { animation: presentSubtle 1.5s ease-in-out infinite; }
+.goblin-presenting { animation: presentJitter 0.55s steps(2, jump-none) infinite; }
+.robot-presenting { animation: presentFloat 0.9s ease-in-out infinite; }
+.unicorn-presenting { animation: presentBounce 1.15s ease-in-out infinite; filter: saturate(1.15); }
+.shark-presenting { animation: presentAggro 0.7s ease-in-out infinite; }
+.octopus-presenting { animation: presentFloat 0.95s ease-in-out infinite; }
+.llama-presenting { animation: presentBounce 0.9s ease-in-out infinite; }
+.hamster-presenting { animation: presentBounce 0.8s ease-in-out infinite; }
+.walrus-presenting { animation: presentSubtle 1.35s ease-in-out infinite; }
+.rocket-presenting { animation: presentAggro 0.8s ease-in-out infinite; }
+.raccoon-presenting { animation: selectSneak 1s ease-in-out infinite; }
+
+.blob-losing { animation: loseFade 750ms ease-out; }
+.chart-losing { animation: loseDrop 760ms ease-out; }
+.gremlin-losing { animation: loseShake 700ms ease-out; }
+.penguin-losing { animation: loseFade 800ms ease-out; }
+.goblin-losing { animation: loseShake 760ms ease-out; }
+.robot-losing { animation: loseDrop 720ms ease-out; filter: grayscale(0.35); }
+.unicorn-losing { animation: loseFade 820ms ease-out; filter: saturate(0.8); }
+.shark-losing { animation: loseDrop 700ms ease-out; }
+.octopus-losing { animation: loseDrop 760ms ease-out; }
+.llama-losing { animation: loseShake 720ms ease-out; }
+.hamster-losing { animation: loseFade 740ms ease-out; }
+.walrus-losing { animation: loseDrop 820ms ease-out; }
+.rocket-losing { animation: loseDrop 680ms ease-out; }
+.raccoon-losing { animation: loseShake 780ms ease-out; }
+
+/* ============================================
+   CHARACTER-SPECIFIC ANIMATIONS
+   ============================================ */
+
+/* 💼 Corporate Blob - Tie & Glasses */
+.blob-winning {
+  animation: winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+@keyframes blobTieFlip {
+  0%, 100% {
+    transform: rotateZ(0deg);
+  }
+  50% {
+    transform: rotateZ(-8deg) translateY(-4px);
+  }
+}
+
+.blob-tie {
+  animation: blobTieFlip 1s ease-in-out;
+}
+
+/* 📊 Chart Mascot - Animated Bars */
+@keyframes barRise {
+  from {
+    height: 40px;
+  }
+  to {
+    height: 70px;
+  }
+}
+
+@keyframes barFall {
+  from {
+    height: 70px;
+  }
+  to {
+    height: 30px;
+  }
+}
+
+.chart-winning .bar-1 { animation: barRise 800ms ease-out; }
+.chart-winning .bar-2 { animation: barRise 800ms ease-out 0.1s; }
+.chart-winning .bar-3 { animation: barRise 800ms ease-out 0.2s; }
+
+.chart-losing .bar-1 { animation: barFall 600ms ease-out; }
+.chart-losing .bar-2 { animation: barFall 600ms ease-out 0.1s; }
+.chart-losing .bar-3 { animation: barFall 600ms ease-out 0.2s; }
+
+/* 💡 Idea Bulb - Glow & Spark */
+@keyframes bulbGlow {
+  from {
+    filter: drop-shadow(0 0 4px rgba(255, 209, 102, 0.5));
+  }
+  to {
+    filter: drop-shadow(0 0 16px rgba(255, 209, 102, 0.9));
+  }
+}
+
+@keyframes sparkFlicker {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.gremlin-winning {
+  animation: winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+.gremlin-bulb {
+  animation: bulbGlow 600ms ease-out;
+}
+
+.gremlin-sparks {
+  animation: sparkFlicker 1s ease-in-out infinite;
+}
+
+/* 😎 Hustler Hoodie - Coin Spin */
+@keyframes coinSpin {
+  from {
+    transform: rotateY(0deg) rotateZ(0deg);
+  }
+  to {
+    transform: rotateY(360deg) rotateZ(10deg);
+  }
+}
+
+@keyframes shadeShine {
+  0% {
+    background-position: -100% 0;
+  }
+  100% {
+    background-position: 100% 0;
+  }
+}
+
+.hamster-winning {
+  animation: winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+.hamster-coin {
+  animation: coinSpin 800ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+/* 📣 Megaphone Character - Sound Waves */
+@keyframes megaphoneExpand {
+  0% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(1.1);
+  }
+  100% {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes soundWaveRing {
+  from {
+    transform: scale(0.8);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+.llama-pitching {
+  animation: megaphoneExpand 1.2s ease-in-out infinite;
+}
+
+.llama-sound-wave {
+  animation: soundWaveRing 1s ease-out;
+}
+
+/* 🐙 Octopus - Tentacle Wave */
+@keyframes tentacleWave {
+  0%, 100% {
+    transform: rotateZ(0deg);
+  }
+  25% {
+    transform: rotateZ(-8deg);
+  }
+  75% {
+    transform: rotateZ(8deg);
+  }
+}
+
+@keyframes suctionPulse {
+  0%, 100% {
+    r: 3;
+  }
+  50% {
+    r: 4.5;
+  }
+}
+
+.octopus-winning {
+  animation: tentacleWave 1s ease-in-out, winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+/* 🐧 Penguin - Tie Flip & Badge */
+@keyframes tieBounce {
+  0%, 100% {
+    transform: rotateZ(0deg);
+  }
+  50% {
+    transform: rotateZ(8deg) translateY(-6px);
+  }
+}
+
+@keyframes badgeShine {
+  0% {
+    filter: drop-shadow(0 0 2px rgba(255, 209, 102, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(255, 209, 102, 0.8));
+  }
+  100% {
+    filter: drop-shadow(0 0 2px rgba(255, 209, 102, 0));
+  }
+}
+
+.penguin-winning {
+  animation: winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+.penguin-tie {
+  animation: tieBounce 800ms ease-in-out;
+}
+
+.penguin-badge {
+  animation: badgeShine 1s ease-out;
+}
+
+/* 🦈 Shark - Fin Flex */
+@keyframes finFlex {
+  0%, 100% {
+    transform: scaleX(1);
+  }
+  50% {
+    transform: scaleX(1.15);
+  }
+}
+
+@keyframes teethSparkle {
+  0%, 100% {
+    filter: drop-shadow(0 0 0 rgba(255, 255, 255, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.8));
+  }
+}
+
+.shark-winning {
+  animation: finFlex 800ms ease-in-out, winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+/* 🦄 Unicorn - Horn Glow & Crown */
+@keyframes hornBeam {
+  from {
+    filter: drop-shadow(0 0 4px rgba(255, 209, 102, 0.4));
+  }
+  to {
+    filter: drop-shadow(0 0 20px rgba(255, 209, 102, 0.9));
+  }
+}
+
+@keyframes crownTwinkle {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(244, 162, 97, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 8px rgba(244, 162, 97, 0.8));
+  }
+}
+
+@keyframes rainbowBurst {
+  from {
+    box-shadow: 0 0 0 0 rgba(255, 193, 7, 0.8);
+  }
+  to {
+    box-shadow: 0 0 60px 30px rgba(255, 193, 7, 0);
+  }
+}
+
+.unicorn-winning {
+  animation: winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+.unicorn-final-winner {
+  animation: winBounce 1.2s cubic-bezier(0.34, 1.43, 0.64, 1), rainbowBurst 1s ease-out;
+}
+
+.unicorn-horn {
+  animation: hornBeam 1s ease-out;
+}
+
+.unicorn-crown {
+  animation: crownTwinkle 1.5s ease-in-out infinite;
+}
+
+/* 🎩 Walrus - Monocle & Whiskers */
+@keyframes monocleSwing {
+  0%, 100% {
+    transform: rotateZ(0deg);
+  }
+  50% {
+    transform: rotateZ(15deg);
+  }
+}
+
+@keyframes mustacheTwitch {
+  0%, 100% {
+    transform: rotateZ(0deg);
+  }
+  25%, 75% {
+    transform: rotateZ(-2deg);
+  }
+  50% {
+    transform: rotateZ(2deg);
+  }
+}
+
+@keyframes monocleGlint {
+  0%, 100% {
+    filter: drop-shadow(0 0 2px rgba(212, 175, 55, 0));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.9));
+  }
+}
+
+.walrus-winning {
+  animation: winBounce 1s cubic-bezier(0.34, 1.43, 0.64, 1);
+}
+
+.walrus-monocle {
+  animation: monocleSwing 1s ease-in-out;
+}
+
+.walrus-monocle-glint {
+  animation: monocleGlint 800ms ease-out;
+}
+
+.walrus-judging {
+  animation: mustacheTwitch 2s ease-in-out infinite;
+}
+
+/* ============================================
+   MONEY ANIMATIONS
+   ============================================ */
+
+@keyframes moneyFloat {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-60px) translateX(20px);
+    opacity: 0;
+  }
+}
+
+@keyframes moneyFloatDown {
+  0% {
+    transform: translateY(0) translateX(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(60px) translateX(-20px);
+    opacity: 0;
+  }
+}
+
+@keyframes scoreTickUp {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
+
+@keyframes scoreTickDown {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+}
+
+.money-gain {
+  animation: moneyFloat 1.2s ease-out;
+  color: #22c55e;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+.money-loss {
+  animation: moneyFloatDown 1s ease-out;
+  color: #ef4444;
+  font-weight: bold;
+  font-size: 1.5rem;
+}
+
+.score-tick-up {
+  animation: scoreTickUp 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.score-tick-down {
+  animation: scoreTickDown 800ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes counterRoll {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-1em);
+  }
+}
+
+.score-counter {
+  animation: counterRoll 400ms ease-out;
+}
+
+/* ============================================
+   UTILITY ANIMATIONS
+   ============================================ */
+
+@keyframes shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-4px);
+  }
+  75% {
+    transform: translateX(4px);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.shake {
+  animation: shake 400ms;
+}
+
+.pulse {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.fade-in-scale {
+  animation: fadeInScale 500ms ease-out;
+}

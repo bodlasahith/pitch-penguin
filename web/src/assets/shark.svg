@@ -1,22 +1,38 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="100" cy="110" rx="70" ry="40" fill="#118AB2"/>
-  <!-- Tail and dorsal fin -->
-  <polygon points="40,110 10,80 10,140" fill="#073B4C"/>
-  <polygon points="90,80 110,40 130,80" fill="#073B4C"/>
-  <!-- Eye + brow -->
-  <ellipse cx="130" cy="105" rx="7" ry="8" fill="white"/>
-  <circle cx="130" cy="107" r="3.5" fill="#111"/>
-  <circle cx="132" cy="104" r="1.5" fill="white"/>
-  <path d="M120 96 Q130 90 140 96" stroke="#073B4C" stroke-width="3" fill="none"/>
-  <!-- Smile and teeth -->
-  <path d="M112 122 Q130 130 148 122" stroke="#073B4C" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <polygon points="118,125 124,134 130,125" fill="white"/>
-  <polygon points="130,125 136,134 142,125" fill="white"/>
-  <!-- Side fin with briefcase -->
-  <rect x="85" y="126" width="22" height="16" rx="2" fill="#2F3E46"/>
-  <rect x="90.5" y="122" width="10" height="6" rx="2" fill="#2F3E46"/>
-  <circle cx="95.5" cy="134" r="5" fill="#F4D35E"/>
-  <text x="93.5" y="137" font-size="7" fill="#2F3E46">$</text>
-  <!-- Subtle highlight -->
-  <ellipse cx="95" cy="95" rx="18" ry="10" fill="white" opacity="0.25"/>
+  <style>
+    .m-body { animation: sharkSwim 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-eye { animation: blink 5.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-tail { animation: tailSwish 1.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 40px 110px; }
+    .m-briefcase { animation: briefSwing 2s ease-in-out infinite; transform-box: fill-box; transform-origin: 96px 126px; }
+    @keyframes sharkSwim { 0%,100% { transform: translateX(0); } 50% { transform: translateX(2px); } }
+    @keyframes blink { 0%,47%,53%,100% { transform: scaleY(1); } 50% { transform: scaleY(0.1); } }
+    @keyframes tailSwish {
+      0%,100% { transform: scaleY(1) scaleX(1); }
+      50% { transform: scaleY(0.82) scaleX(1.08); }
+    }
+    @keyframes briefSwing { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(6deg); } }
+  </style>
+  <g class="m-body">
+    <ellipse cx="100" cy="110" rx="70" ry="40" fill="#118AB2"/>
+    <g class="m-tail">
+      <polygon points="40,110 10,80 10,140" fill="#073B4C"/>
+    </g>
+    <polygon points="90,80 110,40 130,80" fill="#073B4C"/>
+    <g class="m-eye">
+      <ellipse cx="130" cy="105" rx="7" ry="8" fill="white"/>
+      <circle cx="130" cy="107" r="3.5" fill="#111"/>
+      <circle cx="132" cy="104" r="1.5" fill="white"/>
+    </g>
+    <path d="M120 96 Q130 90 140 96" stroke="#073B4C" stroke-width="3" fill="none"/>
+    <path d="M112 122 Q130 130 148 122" stroke="#073B4C" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <polygon points="118,125 124,134 130,125" fill="white"/>
+    <polygon points="130,125 136,134 142,125" fill="white"/>
+    <g class="m-briefcase">
+      <rect x="85" y="126" width="22" height="16" rx="2" fill="#2F3E46"/>
+      <rect x="90.5" y="122" width="10" height="6" rx="2" fill="#2F3E46"/>
+      <circle cx="95.5" cy="134" r="5" fill="#F4D35E"/>
+      <text x="93.5" y="137" font-size="7" fill="#2F3E46">$</text>
+    </g>
+    <ellipse cx="95" cy="95" rx="18" ry="10" fill="white" opacity="0.25"/>
+  </g>
 </svg>

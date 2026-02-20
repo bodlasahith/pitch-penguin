@@ -1,30 +1,44 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="100" cy="110" r="50" fill="#FFD166"/>
-  <!-- Ears -->
-  <circle cx="65" cy="75" r="12" fill="#F4A261"/>
-  <circle cx="135" cy="75" r="12" fill="#F4A261"/>
-  <circle cx="65" cy="75" r="6" fill="#FAD7A0"/>
-  <circle cx="135" cy="75" r="6" fill="#FAD7A0"/>
-  <!-- Eyes -->
-  <ellipse cx="80" cy="90" rx="8" ry="10" fill="white"/>
-  <ellipse cx="120" cy="90" rx="8" ry="10" fill="white"/>
-  <circle cx="80" cy="92" r="5" fill="#222"/>
-  <circle cx="120" cy="92" r="5" fill="#222"/>
-  <circle cx="82" cy="89" r="2" fill="white"/>
-  <circle cx="122" cy="89" r="2" fill="white"/>
-  <!-- Hustle shades -->
-  <rect x="70" y="82" width="20" height="14" rx="3" fill="#000000df" stroke="#111" stroke-width="2"/>
-  <rect x="110" y="82" width="20" height="14" rx="3" fill="#000000df" stroke="#111" stroke-width="2"/>
-  <line x1="90" y1="89" x2="110" y2="89" stroke="#111" stroke-width="2"/>
-  <!-- Snout -->
-  <ellipse cx="100" cy="115" rx="12" ry="9" fill="#FAD7A0"/>
-  <circle cx="100" cy="115" r="3" fill="#333"/>
-  <!-- Smile -->
-  <path d="M90 125 Q100 132 110 125" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/>
-  <!-- Hustler hoodie -->
-  <rect x="85.5" y="115" width="30" height="40" rx="5" fill="#073B4C"/>
-
-  <!-- Coin detail -->
-  <circle cx="100" cy="145" r="5" fill="#FFD166" stroke="#E09F3E" stroke-width="2"/>
-  <text x="97.5" y="148" font-size="8" fill="#073B4C">$</text>
+  <style>
+    .m-bob { animation: bob 3.1s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-eye { animation: blink 5.3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-ears { animation: earBounce 2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-shades { animation: shadesTilt 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-coin { animation: coinSpin 1.6s linear infinite; transform-box: fill-box; transform-origin: center; }
+    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes blink { 0%,45%,51%,100% { transform: scaleY(1); } 48% { transform: scaleY(0.1); } }
+    @keyframes earBounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
+    @keyframes shadesTilt { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(-4deg); } }
+    @keyframes coinSpin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+  </style>
+  <g class="m-bob">
+    <circle cx="100" cy="110" r="50" fill="#FFD166"/>
+    <g class="m-ears">
+      <circle cx="65" cy="75" r="12" fill="#F4A261"/>
+      <circle cx="135" cy="75" r="12" fill="#F4A261"/>
+      <circle cx="65" cy="75" r="6" fill="#FAD7A0"/>
+      <circle cx="135" cy="75" r="6" fill="#FAD7A0"/>
+    </g>
+    <g class="m-eye">
+      <ellipse cx="80" cy="90" rx="8" ry="10" fill="white"/>
+      <ellipse cx="120" cy="90" rx="8" ry="10" fill="white"/>
+      <circle cx="80" cy="92" r="5" fill="#222"/>
+      <circle cx="120" cy="92" r="5" fill="#222"/>
+      <circle cx="82" cy="89" r="2" fill="white"/>
+      <circle cx="122" cy="89" r="2" fill="white"/>
+    </g>
+    <g class="m-shades">
+      <rect x="70" y="82" width="20" height="14" rx="3" fill="#000000df" stroke="#111" stroke-width="2"/>
+      <rect x="110" y="82" width="20" height="14" rx="3" fill="#000000df" stroke="#111" stroke-width="2"/>
+      <line x1="90" y1="89" x2="110" y2="89" stroke="#111" stroke-width="2"/>
+    </g>
+    <ellipse cx="100" cy="115" rx="12" ry="9" fill="#FAD7A0"/>
+    <circle cx="100" cy="115" r="3" fill="#333"/>
+    <path d="M90 125 Q100 132 110 125" stroke="#333" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <rect x="85.5" y="115" width="30" height="40" rx="5" fill="#073B4C"/>
+    <g class="m-coin">
+      <circle cx="100" cy="145" r="5" fill="#FFD166" stroke="#E09F3E" stroke-width="2"/>
+      <text x="97.5" y="148" font-size="8" fill="#073B4C">$</text>
+    </g>
+  </g>
 </svg>

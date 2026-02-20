@@ -1,8 +1,10 @@
 import type { CSSProperties } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
 import LeaderboardModal from '../components/LeaderboardModal'
+import { AnimatedMascot } from '../components/AnimatedMascot'
+import type { MascotEvent } from '../hooks/useAnimationTrigger'
 import walrusSVG from '../assets/walrus.svg'
 
 type GameResponse = {
@@ -15,6 +17,7 @@ type GameResponse = {
     selectedAsk: string | null
     walrusAskTimerSeconds: number
     askSelectionExpiresAt?: number | null
+    serverNow?: number
   }
   mustHavesByPlayer?: Record<string, string[]>
   surpriseByPlayer?: Record<string, string | null>
@@ -33,7 +36,10 @@ export default function Deal() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [selectedOption, setSelectedOption] = useState('')
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+  const [clockOffsetMs, setClockOffsetMs] = useState(0)
   const [allPlayers, setAllPlayers] = useState<Array<{ name: string; mascot?: string }>>([])
+  const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null)
+  const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
 
   const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
@@ -51,6 +57,9 @@ export default function Deal() {
     }
     setWalrus(data.room.walrus)
     setRound(data.room.round)
+    const offsetMs =
+      typeof data.room.serverNow === 'number' ? data.room.serverNow - Date.now() : clockOffsetMs
+    setClockOffsetMs(offsetMs)
     if (data.room.phase && data.room.phase !== 'deal') {
       const nextPath =
         data.room.phase === 'pitch'
@@ -68,7 +77,7 @@ export default function Deal() {
     if (data.room.askSelectionExpiresAt) {
       const remaining = Math.max(
         0,
-        Math.ceil((data.room.askSelectionExpiresAt - Date.now()) / 1000)
+        Math.ceil((data.room.askSelectionExpiresAt - (Date.now() + offsetMs)) / 1000)
       )
       setSecondsLeft(remaining)
     } else {
@@ -89,6 +98,24 @@ export default function Deal() {
     const interval = window.setInterval(load, 1000)
     return () => window.clearInterval(interval)
   }, [navigate])
+
+  useEffect(() => {
+    if (!hoveredPlayer) {
+      allPlayers.forEach((player) => {
+        mascotAnimationRefs.current[player.name]?.('idle')
+      })
+      return
+    }
+    allPlayers.forEach((player) => {
+      const trigger = mascotAnimationRefs.current[player.name]
+      if (!trigger) return
+      if (player.name === hoveredPlayer) {
+        trigger('select')
+      } else {
+        trigger('idle')
+      }
+    })
+  }, [hoveredPlayer, allPlayers])
 
   const handleSelectAsk = async () => {
     if (!roomCode || !selectedOption) {
@@ -158,8 +185,14 @@ export default function Deal() {
                     <img src={walrusSVG} alt="" style={{ width: '18px', height: '18px' }} />
                   </span>
                   {walrusMascotImg && (
-                    <span style={mascotBadgeStyle}>
-                      <img src={walrusMascotImg} alt="" style={{ width: '18px', height: '18px' }} />
+                    <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--deal">
+                      <AnimatedMascot
+                        src={walrusMascotImg}
+                        character={walrusPlayer?.mascot}
+                        width="22px"
+                        height="22px"
+                        className="phase-mascot"
+                      />
                     </span>
                   )}
                   <span>{walrus}</span>
@@ -327,16 +360,41 @@ export default function Deal() {
         <ul className="list">
           {allPlayers.map((player) => {
             const mascotImg = getMascotImage(player.mascot)
+            const isHovered = hoveredPlayer === player.name
             return (
-              <li key={player.name} style={{ fontWeight: player.name === walrus ? 'bold' : 'normal', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <li
+                key={player.name}
+                style={{
+                  fontWeight: player.name === walrus ? 'bold' : 'normal',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  transition: 'background-color 0.2s',
+                  backgroundColor: isHovered ? 'rgba(100, 200, 100, 0.1)' : 'transparent',
+                }}
+                onMouseEnter={() => setHoveredPlayer(player.name)}
+                onMouseLeave={() => setHoveredPlayer(null)}
+              >
                 {player.name === walrus && (
                   <span style={mascotBadgeStyle}>
                     <img src={walrusSVG} alt="" style={{ width: '20px', height: '20px' }} />
                   </span>
                 )}
                 {mascotImg && (
-                  <span style={mascotBadgeStyle}>
-                    <img src={mascotImg} alt="" style={{ width: '20px', height: '20px' }} />
+                  <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--deal">
+                    <AnimatedMascot
+                      src={mascotImg}
+                      character={player.mascot}
+                      width="24px"
+                      height="24px"
+                      className="phase-mascot"
+                      setAnimationTrigger={(trigger) => {
+                        mascotAnimationRefs.current[player.name] = trigger
+                      }}
+                    />
                   </span>
                 )}
                 <span>{player.name}</span>

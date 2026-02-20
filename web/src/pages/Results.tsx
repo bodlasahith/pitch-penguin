@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
+import { AnimatedMascot } from '../components/AnimatedMascot'
+import type { MascotEvent } from '../hooks/useAnimationTrigger'
 import LeaderboardModal from '../components/LeaderboardModal'
 
 type Pitch = {
@@ -60,6 +62,8 @@ export default function Results() {
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
   const [finalRoundPitches, setFinalRoundPitches] = useState<Pitch[]>([])
   const [truceActivated, setTruceActivated] = useState(false)
+  const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
+  const animationCycleKeyRef = useRef('')
 
   const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
@@ -110,7 +114,7 @@ export default function Results() {
       }
 
       // Check if player is host
-      if (data.players) {
+      if (data.players && data.room) {
         const nextMascots: Record<string, string> = {}
         data.players.forEach((entry) => {
           if (entry.mascot) {
@@ -118,10 +122,18 @@ export default function Results() {
           }
         })
         setPlayerMascots(nextMascots)
-        const player = data.players.find(
-          (p) => p.name.toLowerCase() === playerName.toLowerCase()
+        
+        // Trigger winner animation after mascots are loaded
+        if (data.ok && data.room && data.room.gameWinner && nextMascots[data.room.gameWinner]) {
+          setTimeout(() => {
+            mascotAnimationRefs.current[`champion-${data.room!.gameWinner}`]?.('win')
+          }, 200)
+        }
+        
+        const nextIsHost = data.players.some((entry) =>
+          entry.isHost && playerName && entry.name.toLowerCase() === playerName.toLowerCase()
         )
-        setIsHost(player?.isHost ?? false)
+        setIsHost(nextIsHost)
       }
     }
 
@@ -129,6 +141,30 @@ export default function Results() {
     const interval = window.setInterval(load, 2000)
     return () => window.clearInterval(interval)
   }, [roomCode, playerName, navigate])
+
+  useEffect(() => {
+    if (!gameWinner && gameWinners.length === 0) {
+      return
+    }
+    const signature = `${gameWinner ?? ''}|${gameWinners.join(',')}|${Object.keys(playerScores).length}`
+    if (!signature || animationCycleKeyRef.current === signature) {
+      return
+    }
+    animationCycleKeyRef.current = signature
+    const timeout = window.setTimeout(() => {
+      Object.keys(playerScores).forEach((player) => {
+        const isWinner = gameWinner === player || gameWinners.includes(player)
+        const trigger = mascotAnimationRefs.current[`leaderboard-${player}`]
+        if (trigger) {
+          trigger(isWinner ? 'win' : 'lose-money')
+        }
+      })
+      if (gameWinner) {
+        mascotAnimationRefs.current[`champion-${gameWinner}`]?.('win')
+      }
+    }, 250)
+    return () => window.clearTimeout(timeout)
+  }, [gameWinner, gameWinners, playerScores])
 
   const handleLeave = () => {
     navigate(`/`)
@@ -180,8 +216,8 @@ export default function Results() {
   )
 
   const mascotBadgeStyle: CSSProperties = {
-    width: '28px',
-    height: '28px',
+    width: '34px',
+    height: '34px',
     borderRadius: '999px',
     backgroundColor: 'rgba(59, 42, 21, 0.08)',
     border: '1px solid rgba(59, 42, 21, 0.12)',
@@ -193,11 +229,17 @@ export default function Results() {
   const gameWinnerLabel = gameWinner ? (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
       {playerMascots[gameWinner] && (
-        <span style={mascotBadgeStyle}>
-          <img
+        <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--results">
+          <AnimatedMascot
             src={getMascotImage(playerMascots[gameWinner]) ?? ''}
-            alt=""
-            style={{ width: '20px', height: '20px' }}
+            alt={playerMascots[gameWinner]}
+            character={playerMascots[gameWinner]}
+            width="26px"
+            height="26px"
+            className="phase-mascot"
+            setAnimationTrigger={(trigger) => {
+              mascotAnimationRefs.current[`champion-${gameWinner}`] = trigger
+            }}
           />
         </span>
       )}
@@ -263,11 +305,14 @@ export default function Results() {
             {lastWinner?.player ? (
               <>
                 {playerMascots[lastWinner.player] && (
-                  <span style={mascotBadgeStyle}>
-                    <img
+                  <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--results">
+                    <AnimatedMascot
                       src={getMascotImage(playerMascots[lastWinner.player]) ?? ''}
-                      alt=""
-                      style={{ width: '20px', height: '20px' }}
+                      alt={playerMascots[lastWinner.player]}
+                      character={playerMascots[lastWinner.player]}
+                      width="24px"
+                      height="24px"
+                      className="phase-mascot"
                     />
                   </span>
                 )}
@@ -276,11 +321,17 @@ export default function Results() {
             ) : champion ? (
               <>
                 {playerMascots[champion[0]] && (
-                  <span style={mascotBadgeStyle}>
-                    <img
+                  <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--results">
+                    <AnimatedMascot
                       src={getMascotImage(playerMascots[champion[0]]) ?? ''}
-                      alt=""
-                      style={{ width: '20px', height: '20px' }}
+                      alt={playerMascots[champion[0]]}
+                      character={playerMascots[champion[0]]}
+                      width="24px"
+                      height="24px"
+                      className="phase-mascot"
+                      setAnimationTrigger={(trigger) => {
+                        mascotAnimationRefs.current[`champion-${champion[0]}`] = trigger
+                      }}
                     />
                   </span>
                 )}
@@ -321,10 +372,17 @@ export default function Results() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {Object.entries(playerScores ?? {})
                 .sort(([, a], [, b]) => b - a)
-                .map(([player, score]) => {
+                .map(([player, score], index) => {
                   const maxScore = Math.max(...Object.values(playerScores ?? {}))
                   const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0
                   const isWinner = gameWinner === player || gameWinners.includes(player)
+                  
+                  const getMedalEmoji = (placement: number) => {
+                    if (placement === 0) return '🥇'
+                    if (placement === 1) return '🥈'
+                    if (placement === 2) return '🥉'
+                    return null
+                  }
                   
                   return (
                     <div
@@ -337,6 +395,11 @@ export default function Results() {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {getMedalEmoji(index) && (
+                            <span style={{ fontSize: '1.4rem' }}>
+                              {getMedalEmoji(index)}
+                            </span>
+                          )}
                           {playerMascots[player] && (
                             <div
                               style={{
@@ -350,10 +413,16 @@ export default function Results() {
                                 justifyContent: 'center'
                               }}
                             >
-                              <img
+                              <AnimatedMascot
                                 src={getMascotImage(playerMascots[player]) ?? ''}
-                                alt=""
-                                style={{ width: '20px', height: '20px' }}
+                                alt={playerMascots[player]}
+                                character={playerMascots[player]}
+                                width="24px"
+                                height="24px"
+                                className="phase-mascot"
+                                setAnimationTrigger={(trigger) => {
+                                  mascotAnimationRefs.current[`leaderboard-${player}`] = trigger
+                                }}
                               />
                             </div>
                           )}
@@ -429,10 +498,12 @@ export default function Results() {
                       }}
                     >
                       {playerMascots[player] && (
-                        <img
+                        <AnimatedMascot
                           src={getMascotImage(playerMascots[player]) ?? ''}
-                          alt=""
-                          style={{ width: '34px', height: '34px' }}
+                          alt={playerMascots[player]}
+                          character={playerMascots[player]}
+                          width="34px"
+                          height="34px"
                         />
                       )}
                     </div>
@@ -485,11 +556,14 @@ export default function Results() {
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                       {playerMascots[pitch.player] && (
-                        <span style={mascotBadgeStyle}>
-                          <img
+                        <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--results">
+                          <AnimatedMascot
                             src={getMascotImage(playerMascots[pitch.player]) ?? ''}
-                            alt=""
-                            style={{ width: '18px', height: '18px' }}
+                            alt={playerMascots[pitch.player]}
+                            character={playerMascots[pitch.player]}
+                            width="22px"
+                            height="22px"
+                            className="phase-mascot"
                           />
                         </span>
                       )}

@@ -2,7 +2,9 @@ import type { CSSProperties, PointerEvent } from 'react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
+import { AnimatedMascot } from '../components/AnimatedMascot'
 import LeaderboardModal from '../components/LeaderboardModal'
+import type { MascotEvent } from '../hooks/useAnimationTrigger'
 
 type GameResponse = {
   ok: boolean
@@ -12,6 +14,7 @@ type GameResponse = {
     pitchTimerSeconds: number
     robotVoiceEnabled: boolean
     pitchEndsAt?: number | null
+    serverNow?: number
     phase?: string
   }
   mustHavesByPlayer?: Record<string, string[]>
@@ -45,6 +48,7 @@ export default function Pitch() {
   const [voice, setVoice] = useState('Neon Announcer')
   const [pitchEndsAt, setPitchEndsAt] = useState<number | null>(null)
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
+  const [clockOffsetMs, setClockOffsetMs] = useState(0)
   const [generatedPitch, setGeneratedPitch] = useState<string | null>(null)
   const [generating, setGenerating] = useState(false)
   const [usedAIGeneration, setUsedAIGeneration] = useState(false)
@@ -57,6 +61,8 @@ export default function Pitch() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const canvasWrapRef = useRef<HTMLDivElement | null>(null)
   const isDrawingRef = useRef(false)
+  const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
+  const previousStatusesRef = useRef<Record<string, string>>({})
   const [brushColor, setBrushColor] = useState('#2e2a27')
   const [brushSize, setBrushSize] = useState(6)
   const [isEraser, setIsEraser] = useState(false)
@@ -95,6 +101,9 @@ export default function Pitch() {
       return
     }
     setWalrus(data.room.walrus)
+    const offsetMs =
+      typeof data.room.serverNow === 'number' ? data.room.serverNow - Date.now() : clockOffsetMs
+    setClockOffsetMs(offsetMs)
     setSelectedAsk(data.room.selectedAsk)
     setRobotVoiceEnabled(data.room.robotVoiceEnabled)
     setPitchEndsAt(data.room.pitchEndsAt ?? null)
@@ -135,7 +144,7 @@ export default function Pitch() {
         setSecondsLeft(null)
         return
       }
-      const remaining = Math.max(0, Math.ceil((pitchEndsAt - Date.now()) / 1000))
+      const remaining = Math.max(0, Math.ceil((pitchEndsAt - (Date.now() + clockOffsetMs)) / 1000))
       setSecondsLeft(remaining)
     }, 1000)
     return () => {
@@ -146,7 +155,7 @@ export default function Pitch() {
         window.clearInterval(timerId)
       }
     }
-  }, [pitchEndsAt, navigate])
+  }, [pitchEndsAt, navigate, clockOffsetMs])
 
   const handleStatus = async (status: 'drafting' | 'ready') => {
     if (!roomCode || !playerName) {
@@ -254,8 +263,8 @@ export default function Pitch() {
   const playerStatus = playerName ? pitchStatuses[playerName] : undefined
   const isLocked = playerStatus === 'ready'
   const mascotBadgeStyle: CSSProperties = {
-    width: '24px',
-    height: '24px',
+    width: '30px',
+    height: '30px',
     borderRadius: '999px',
     backgroundColor: 'rgba(59, 42, 21, 0.08)',
     border: '1px solid rgba(59, 42, 21, 0.12)',
@@ -276,6 +285,23 @@ export default function Pitch() {
       void handleStatus('ready')
     }
   }, [secondsLeft, isWalrus, isLocked, autoSubmitted])
+
+  useEffect(() => {
+    Object.entries(pitchStatuses)
+      .filter(([name]) => name !== walrus)
+      .forEach(([name, status]) => {
+        const trigger = mascotAnimationRefs.current[name]
+        if (!trigger) return
+        const previous = previousStatusesRef.current[name]
+        if (previous === status) return
+        if (status === 'ready') {
+          trigger('win')
+        } else {
+          trigger('pitch')
+        }
+      })
+    previousStatusesRef.current = pitchStatuses
+  }, [pitchStatuses, walrus])
 
   const canvasBg = '#fffaf1'
 
@@ -432,11 +458,17 @@ export default function Pitch() {
                   }}
                 >
                   {playerMascots[name] && (
-                    <span style={mascotBadgeStyle}>
-                      <img
+                    <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--pitch">
+                      <AnimatedMascot
                         src={getMascotImage(playerMascots[name]) ?? ''}
-                        alt=""
-                        style={{ width: '18px', height: '18px' }}
+                        alt={playerMascots[name]}
+                        character={playerMascots[name]}
+                        width="24px"
+                        height="24px"
+                        className="phase-mascot"
+                        setAnimationTrigger={(trigger) => {
+                          mascotAnimationRefs.current[name] = trigger
+                        }}
                       />
                     </span>
                   )}

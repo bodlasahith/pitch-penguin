@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
+import { AnimatedMascot } from '../components/AnimatedMascot'
+import type { MascotEvent } from '../hooks/useAnimationTrigger'
 
 import rocketSVG from '../assets/rocket.svg'
 import chartSVG from '../assets/chart.svg'
@@ -58,7 +60,9 @@ export default function Lobby() {
   const [hostChanged, setHostChanged] = useState(false)
   const [activityLog, setActivityLog] = useState<string[]>([])
   const [selectedMascot, setSelectedMascot] = useState('')
+  const [hoveredMascot, setHoveredMascot] = useState<string | null>(null)
   const previousPlayers = useRef<string[]>([])
+  const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
   
   const mascotOptions = [
     { name: 'Rocket CEO', id: 'rocket', svg: rocketSVG },
@@ -286,6 +290,23 @@ export default function Lobby() {
       .filter((mascot): mascot is string => Boolean(mascot))
   )
 
+  useEffect(() => {
+    mascotOptions.forEach((mascot) => {
+      const trigger = mascotAnimationRefs.current[`select-${mascot.id}`]
+      if (!trigger) return
+      const isTaken = takenMascots.has(mascot.id) && selectedMascot !== mascot.id
+      if (hoveredMascot === mascot.id || selectedMascot === mascot.id) {
+        trigger('select')
+        return
+      }
+      if (isTaken) {
+        trigger('deselect')
+        return
+      }
+      trigger('idle')
+    })
+  }, [hoveredMascot, selectedMascot, players])
+
   return (
     <>
       <section className="page-header">
@@ -370,7 +391,16 @@ export default function Lobby() {
                       }}
                     >
                       {mascotImg && (
-                        <img src={mascotImg} alt="" style={{ width: '36px', height: '36px' }} />
+                        <AnimatedMascot
+                          src={mascotImg}
+                          alt={player.mascot || 'mascot'}
+                          character={player.mascot}
+                          width="36px"
+                          height="36px"
+                          setAnimationTrigger={(trigger) => {
+                            mascotAnimationRefs.current[player.name] = trigger
+                          }}
+                        />
                       )}
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -399,29 +429,46 @@ export default function Lobby() {
           }}>
             {mascotOptions.map((mascot) => {
               const isTaken = takenMascots.has(mascot.id) && selectedMascot !== mascot.id
+              const isHovered = hoveredMascot === mascot.id
+              const isSelected = selectedMascot === mascot.id
               return (
               <button
                 key={mascot.id}
                 className="button secondary"
-                onClick={() => handleMascotSelect(mascot.id)}
+                onClick={() => {
+                  handleMascotSelect(mascot.id)
+                  // Trigger select animation when clicked
+                  setTimeout(() => {
+                    mascotAnimationRefs.current[`select-${mascot.id}`]?.('select')
+                  }, 50)
+                }}
+                onMouseEnter={() => setHoveredMascot(mascot.id)}
+                onMouseLeave={() => setHoveredMascot(null)}
                 disabled={isTaken}
                 title={isTaken ? `${mascot.name} (Taken)` : mascot.name}
                 style={{
                   padding: '8px',
                   borderRadius: '8px',
-                  border: selectedMascot === mascot.id ? '2px solid #3b2a15' : '1px solid rgba(70, 60, 50, 0.2)',
+                  border: isSelected ? '2px solid #3b2a15' : isHovered ? '2px solid #d4a574' : '1px solid rgba(70, 60, 50, 0.2)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: isTaken ? 'not-allowed' : 'pointer',
-                  backgroundColor: selectedMascot === mascot.id ? 'rgba(59, 42, 21, 0.1)' : 'transparent',
-                  opacity: isTaken ? 0.45 : 1
+                  backgroundColor: isSelected ? 'rgba(59, 42, 21, 0.15)' : isHovered ? 'rgba(212, 165, 116, 0.08)' : 'transparent',
+                  opacity: isTaken ? 0.45 : 1,
+                  transition: 'all 0.2s',
+                  filter: isTaken ? 'grayscale(1)' : 'none'
                 }}
               >
-                <img
+                <AnimatedMascot
                   src={mascot.svg}
                   alt={mascot.name}
-                  style={{ width: '40px', height: '40px', filter: isTaken ? 'grayscale(1)' : 'none' }}
+                  character={mascot.id}
+                  width="40px"
+                  height="40px"
+                  setAnimationTrigger={(trigger) => {
+                    mascotAnimationRefs.current[`select-${mascot.id}`] = trigger
+                  }}
                 />
               </button>
               )
@@ -448,7 +495,6 @@ export default function Lobby() {
               </button>
             </li>
             <li>Drawing pad: Enabled</li>
-            <li>Walrus vote: Double weight</li>
           </ul>
         </div>
         <div className="panel">

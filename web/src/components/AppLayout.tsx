@@ -17,6 +17,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const [isTransitioning, setIsTransitioning] = useState(false)
   const lastPathRef = useRef(location.pathname)
   const lastReadyPhaseRef = useRef<string | null>(null)
+  const transitionPhaseRef = useRef<string | null>(null)
+  const transitionEndsAtRef = useRef<number | null>(null)
 
   useEffect(() => {
     lastPathRef.current = location.pathname
@@ -74,38 +76,60 @@ export default function AppLayout({ children }: AppLayoutProps) {
     if (roomPhase === 'reveal') return '/reveal'
     if (roomPhase === 'vote') return '/vote'
     if (roomPhase === 'results') return '/results'
+    if (roomPhase === 'final-round') return '/final-round'
     return null
   }, [roomCode, roomPhase])
 
   useEffect(() => {
+    if (roomPhase !== 'deal' && roomPhase !== 'pitch' && roomPhase !== 'final-round') {
+      lastReadyPhaseRef.current = null
+    }
+  }, [roomPhase])
+
+  useEffect(() => {
     if (!roomCode || !roomPhase || isPublicRoute || !phasePath) {
+      if (isTransitioning) {
+        setIsTransitioning(false)
+      }
       return
     }
+
+    const transitionKey = `${roomPhase}:${phasePath}`
+
     if (roomPhase === 'lobby') {
       if (isTransitioning) {
         setIsTransitioning(false)
       }
       return
     }
-    if (location.pathname !== phasePath) {
+
+    if (transitionPhaseRef.current !== transitionKey) {
+      transitionPhaseRef.current = transitionKey
+      transitionEndsAtRef.current = Date.now() + 3000
       setIsTransitioning(true)
+    }
+
+    if (location.pathname !== phasePath) {
       navigate(phasePath, { replace: true })
       return
     }
+
     if (isTransitioning) {
+      const endsAt = transitionEndsAtRef.current ?? Date.now()
+      const remaining = Math.max(0, endsAt - Date.now())
       const timeoutId = window.setTimeout(() => {
         setIsTransitioning(false)
-      }, 3000)
+      }, remaining)
       return () => window.clearTimeout(timeoutId)
     }
-  }, [roomCode, roomPhase, phasePath, location.pathname, isPublicRoute, navigate])
+  }, [roomCode, roomPhase, phasePath, location.pathname, isPublicRoute, navigate, isTransitioning])
 
   useEffect(() => {
     const signalReady = async () => {
       if (!roomCode || !roomPhase || isPublicRoute || isTransitioning) {
         return
       }
-      if (roomPhase !== 'deal' && roomPhase !== 'pitch') {
+      if (roomPhase !== 'deal' && roomPhase !== 'pitch' && roomPhase !== 'final-round') {
         return
       }
       if (location.pathname !== phasePath) {
@@ -146,6 +170,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
         return { title: 'Up next: Reveal', subtitle: 'Queueing pitches for the walrus.' }
       case 'results':
         return { title: 'Up next: Results', subtitle: 'Counting $100 bills and the winner.' }
+      case 'final-round':
+        return { title: 'Up next: Final Round', subtitle: 'Loading championship pitches.' }
       default:
         return { title: 'Syncing round', subtitle: 'Gathering the latest room state.' }
     }

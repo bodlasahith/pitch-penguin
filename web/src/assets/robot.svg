@@ -1,9 +1,23 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <rect x="60" y="60" width="80" height="80" rx="20" fill="#00B4D8"/>
-  <circle cx="85" cy="95" r="8" fill="white"/>
-  <circle cx="115" cy="95" r="8" fill="white"/>
-  <rect x="90" y="115" width="20" height="5" fill="white"/>
-  <rect x="90" y="30" width="20" height="30" fill="#00B4D8"/>
-  <circle cx="100" cy="20" r="10" fill="#FFBE0B"/>
+  <style>
+    .m-bob { animation: bob 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-eye { animation: blink 4.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-antenna { animation: ping 1.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes blink { 0%,46%,52%,100% { transform: scaleY(1); } 49% { transform: scaleY(0.15); } }
+    @keyframes ping {
+      0%,100% { transform: translateY(0); opacity: 1; }
+      50% { transform: translateY(-2px); opacity: 0.7; }
+    }
+  </style>
+  <g class="m-bob">
+    <rect x="60" y="60" width="80" height="80" rx="20" fill="#00B4D8"/>
+    <g class="m-eye">
+      <circle cx="85" cy="95" r="8" fill="white"/>
+      <circle cx="115" cy="95" r="8" fill="white"/>
+    </g>
+    <rect x="90" y="115" width="20" height="5" fill="white"/>
+    <rect x="90" y="30" width="20" height="30" fill="#00B4D8"/>
+    <circle class="m-antenna" cx="100" cy="20" r="10" fill="#FFBE0B"/>
+  </g>
 </svg>
-

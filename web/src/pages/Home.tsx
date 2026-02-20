@@ -102,9 +102,10 @@ export default function Home() {
           <div className="eyebrow">Kickoff</div>
           <h1>Bring the pitch night online.</h1>
           <p>
-            Business Walrus is a social pitch party where ASK cards spark the
-            chaos, MUST HAVEs keep it grounded, and the Walrus Surprise throws a
-            curveball.
+            Business Walrus is a entrepreneurship-themed social pitch party
+            where: <br></br> <strong>ASK</strong> cards present a problem, <br></br> <strong>MUST HAVEs</strong> are quirky requirements, <br></br> and <strong>Walrus Surprises</strong> throw a curveball.
+            <br></br>Walruses may invest in ideas based on creativity, effort,
+            entertainment, or just pure chaos.
           </p>
         </div>
         <div className="panel">
@@ -112,9 +113,9 @@ export default function Home() {
             className="pill"
             data-state={status === 'live' ? 'live' : status === 'down' ? 'down' : 'idle'}
           >
-            {status === 'live' && 'API Connected'}
-            {status === 'down' && 'API Offline'}
-            {status === 'idle' && 'Checking API'}
+            {status === 'live' && 'Backend Online'}
+            {status === 'down' && 'Backend Offline'}
+            {status === 'idle' && 'Checking Backend...'}
           </div>
           <p style={{ marginTop: '10px' }}>
             {health?.service ?? 'Waiting for backend...'}
@@ -162,38 +163,44 @@ export default function Home() {
           )}
         </div>
         <div className="panel">
-          <h3>Robot reader</h3>
-          <p>
-            Every pitch gets an AI voice. Choose from quirky announcers and
-            crisp startup narrators.
-          </p>
-        </div>
-        <div className="panel">
           <h3>Visual pitch board</h3>
           <p>
-            Add a doodle or logo sketch while you pitch. Keep it simple and
-            chaotic.
+            Add a doodle or logo sketch while you pitch, Pictionary-style. Make sure to
+            <span title="Keep it simple, stupid."> KiSS!</span>
+          </p>
+          <h3 style={{ marginTop: '24px' }}>Robot reader</h3>
+          <p>
+            Every pitch gets an robot voice. Choose from quirky announcers and
+            crisp startup narrators, if you don't want to do the honors yourself.
+          </p>
+          <h3 style={{ marginTop: '24px' }}>The AI angle</h3>
+          <p>
+            If you can't come up with a pitch in time, the AI Assistant has your back.
+            But beware - if your opponents correctly guess that your pitch was AI-generated,
+            you could be disqualified and lose money. Use it wisely!
           </p>
         </div>
       </section>
-
       <section className="panel">
-        <h3>Rulebook highlights</h3>
-        <ul className="list">
-          {(rules.length > 0
-            ? rules
-            : [
-                'Walrus rotates each round and reads the ASK aloud.',
-                'Each player draws 4 MUST HAVEs and uses at least 1.',
-                'A secret Walrus Surprise hits one random player.',
-                'Walrus Surprise winners earn $200 instead of $100.',
-                'Players can request an AI pitch, but it is challengeable.',
-                'First to $500 ends the game.',
-              ]
-          ).map((rule) => (
-            <li key={rule}>{rule}</li>
-          ))}
-        </ul>
+        <h3>Rules of the game</h3>
+        <div className="grid">
+          <ul className="list">
+            {(rules.length > 0
+              ? rules.slice(0, Math.ceil(rules.length / 2))
+              : ['Loading rules...']
+            ).map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+          <ul className="list">
+            {(rules.length > 0
+              ? rules.slice(Math.ceil(rules.length / 2))
+              : []
+            ).map((rule) => (
+              <li key={rule}>{rule}</li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       <section className="panel">
@@ -205,34 +212,48 @@ export default function Home() {
           </div>
           <div className="card">
             <strong>2. Write pitch</strong>
-            <span>Timer + voice selection + optional sketch.</span>
+            <span>Timer + pitch + description + optional sketch.</span>
           </div>
           <div className="card">
             <strong>3. Reveal</strong>
-            <span>Robot readers take turns presenting.</span>
+            <span>Players take turns presenting to the Walrus.</span>
           </div>
           <div className="card">
             <strong>4. Vote</strong>
-            <span>Walrus crowns the winner of the round.</span>
+            <span>Walrus crowns the winner of the round and invests in them.</span>
           </div>
         </div>
-      </section>
-
-      <section className="grid">
-        <div className="panel">
-          <h3>Win condition</h3>
-          <p>
-            Each round, the Walrus selects the best pitch. That player gains $100,
-            or $200 if they held the Walrus Surprise. First to $500 wins and the
-            game ends.
-          </p>
+        <h3 style={{ marginTop: '24px' }}>Final round Case A: Top player pitch-off</h3>
+        <div className="grid">
+          <div className="card">
+            <strong>1. Write pitch</strong>
+            <span>
+              Auto assigned ASK + MUST HAVEs. Top 2-7 players pitch head-to-head.
+            </span>
+          </div>
+          <div className="card">
+            <strong>2. Vote</strong>
+            <span>
+              Walrus(es) rank the pitches best to worst. Player with the most money wins.
+            </span>
+          </div>
         </div>
-        <div className="panel">
-          <h3>AI pitch challenge (later)</h3>
-          <p>
-            If a player runs out of time, they can request a quick AI-generated
-            pitch. Anyone can challenge a suspicious pitch during reveal.
-          </p>
+        <h3 style={{ marginTop: '24px' }}>Final round Case B: Top player immunity</h3>
+        <div className="grid">
+          <div className="card">
+            <strong>1. Write pitch</strong>
+            <span>
+              Auto assigned ASK + MUST HAVEs. Top player gets immunity bonus and becomes
+              Walrus. Everyone else pitches to compete for ranks 2-7.
+            </span>
+          </div>
+          <div className="card">
+            <strong>2. Vote</strong>
+            <span>
+              Walrus ranks the pitches best to worst. Players may rise or fall,
+              but the walrus stays safe on top.
+            </span>
+          </div>
         </div>
       </section>
     </>

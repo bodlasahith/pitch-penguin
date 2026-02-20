@@ -3,6 +3,7 @@ import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 
 type LeaderboardModalProps = {
   roomCode: string
+  inline?: boolean
 }
 
 type GameResponse = {
@@ -13,7 +14,7 @@ type GameResponse = {
   players?: Array<{ name: string; mascot?: string }>
 }
 
-export default function LeaderboardModal({ roomCode }: LeaderboardModalProps) {
+export default function LeaderboardModal({ roomCode, inline = false }: LeaderboardModalProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [playerScores, setPlayerScores] = useState<Record<string, number>>({})
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
@@ -56,18 +57,18 @@ export default function LeaderboardModal({ roomCode }: LeaderboardModalProps) {
       <button
         onClick={() => setIsOpen(true)}
         style={{
-          padding: '8px 16px',
+          padding: inline ? '6px 12px' : '8px 16px',
           borderRadius: '8px',
           backgroundColor: '#d4a574',
           border: '2px solid rgba(212, 165, 116, 0.3)',
           color: '#fff',
-          fontSize: '14px',
+          fontSize: inline ? '13px' : '14px',
           fontWeight: '600',
           cursor: 'pointer',
           display: 'inline-flex',
           alignItems: 'center',
-          gap: '8px',
-          boxShadow: '0 2px 8px rgba(212, 165, 116, 0.2)',
+          gap: inline ? '6px' : '8px',
+          boxShadow: inline ? '0 1px 4px rgba(212, 165, 116, 0.2)' : '0 2px 8px rgba(212, 165, 116, 0.2)',
           transition: 'all 0.2s ease',
         }}
         onMouseEnter={(e) => {
@@ -84,7 +85,8 @@ export default function LeaderboardModal({ roomCode }: LeaderboardModalProps) {
         }}
         title="View Leaderboard"
       >
-        📊 <span>Leaderboard</span>
+        <span>📊</span>
+        <span>{inline ? 'Scores' : 'Leaderboard'}</span>
       </button>
 
       {/* Modal Backdrop */}
