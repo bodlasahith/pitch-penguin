@@ -568,12 +568,15 @@ export default function Pitch() {
           </p>
         </div>
         <div className="panel">
-          <h3>Time Left</h3>
+          <h3>{isWalrus ? 'Reveals In' : 'Time Left'}</h3>
           <div className="timer">
             {secondsLeft !== null
               ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
               : '--:--'}
           </div>
+          {secondsLeft !== null && secondsLeft <= 15 && (
+            <p style={{ marginTop: '8px', color: '#d4a574' }}>⏰ Time running out</p>
+          )}
           <p style={{ marginTop: '8px' }}>
             {usedAIGeneration && '🤖 Using AI Generation'}
           </p>

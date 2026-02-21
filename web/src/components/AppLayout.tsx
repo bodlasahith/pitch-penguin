@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import TopNav from './TopNav'
+import { getSocket } from '../utils/socket'
 
 type AppLayoutProps = {
   children: ReactNode
@@ -31,6 +32,35 @@ export default function AppLayout({ children }: AppLayoutProps) {
     const storedRoom = localStorage.getItem('bw:lastRoom') ?? ''
     setRoomCode(roomFromPath || storedRoom)
   }, [location.pathname])
+
+  useEffect(() => {
+    if (!roomCode) {
+      return
+    }
+
+    const socket = getSocket()
+    const playerName = localStorage.getItem(`bw:player:${roomCode}`) ?? ''
+    const handleRoomState = (payload: { code?: string; status?: string; room?: { phase?: string } }) => {
+      if (payload.code && payload.code !== roomCode) {
+        return
+      }
+      const nextPhase = payload.room?.phase ?? payload.status
+      if (nextPhase) {
+        setRoomPhase(nextPhase)
+      }
+    }
+
+    if (!socket.connected) {
+      socket.connect()
+    }
+    socket.on('room:state', handleRoomState)
+    socket.emit('room:join', { code: roomCode, playerName })
+
+    return () => {
+      socket.emit('room:leave', { code: roomCode })
+      socket.off('room:state', handleRoomState)
+    }
+  }, [roomCode])
 
   useEffect(() => {
     if (!roomCode) {

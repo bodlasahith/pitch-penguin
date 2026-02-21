@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "dotenv": "^17.3.1",
-    "fastify": "^4.28.1"
+    "fastify": "^4.28.1",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
     "tsx": "^4.16.2",

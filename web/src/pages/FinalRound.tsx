@@ -1,10 +1,12 @@
 import type { CSSProperties, PointerEvent } from 'react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
 import { AnimatedMascot } from '../components/AnimatedMascot'
 import LeaderboardModal from '../components/LeaderboardModal'
 import { playActionSound, playPhaseSound } from '../utils/soundEffects'
+import { buildNarrationText, KOKORO_VOICES, normalizeKokoroVoiceName, selectSpeechVoice } from '../utils/voiceProfiles'
+import { fetchServerTtsAudio } from '../utils/ttsApi'
 
 type GameResponse = {
   ok: boolean
@@ -32,6 +34,7 @@ type Pitch = {
   player: string
   title: string
   summary: string
+  voice?: string
   sketchData?: string | null
   usedMustHaves?: string[]
 }
@@ -55,6 +58,8 @@ export default function FinalRound() {
   const [surprise, setSurprise] = useState<string | null>(null)
   const [pitchTitle, setPitchTitle] = useState('')
   const [pitchText, setPitchText] = useState('')
+  const voiceOptions = useMemo(() => [...KOKORO_VOICES], [])
+  const [voice, setVoice] = useState<string>(voiceOptions[0] ?? 'Heart')
   const [selectedMustHaves, setSelectedMustHaves] = useState<string[]>([])
   const [pitchEndsAt, setPitchEndsAt] = useState<number | null>(null)
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
@@ -71,6 +76,8 @@ export default function FinalRound() {
   const [viewedPitches, setViewedPitches] = useState<Set<string>>(new Set())
   const [submitError, setSubmitError] = useState<'viewed' | 'incomplete' | null>(null)
   const [isTransitioning, setIsTransitioning] = useState(false)
+  const [speakingPitchId, setSpeakingPitchId] = useState<string | null>(null)
+  const [loadingPitchId, setLoadingPitchId] = useState<string | null>(null)
   
   // Canvas state
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -78,6 +85,9 @@ export default function FinalRound() {
   const isDrawingRef = useRef(false)
   const hasStartedTransitionRef = useRef(false)
   const finalRoundReadyRef = useRef(false)
+  const activeAudioRef = useRef<HTMLAudioElement | null>(null)
+  const activeAudioUrlRef = useRef<string | null>(null)
+  const narrationTokenRef = useRef(0)
   const [brushColor, setBrushColor] = useState('#2e2a27')
   const [brushSize, setBrushSize] = useState(6)
   const [isEraser, setIsEraser] = useState(false)
@@ -109,6 +119,141 @@ export default function FinalRound() {
     if (!hasInk) return null
     return canvas.toDataURL('image/png')
   }, [backgroundColor.r, backgroundColor.g, backgroundColor.b])
+
+  const stopNarration = useCallback(() => {
+    narrationTokenRef.current += 1
+    if (activeAudioRef.current) {
+      activeAudioRef.current.pause()
+      activeAudioRef.current.src = ''
+      activeAudioRef.current = null
+    }
+    if (activeAudioUrlRef.current) {
+      URL.revokeObjectURL(activeAudioUrlRef.current)
+      activeAudioUrlRef.current = null
+    }
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+    }
+    setLoadingPitchId(null)
+    setSpeakingPitchId(null)
+  }, [])
+
+  const playBlobNarration = useCallback(async (pitchId: string, audioBlob: Blob, token: number) => {
+    const audioUrl = URL.createObjectURL(audioBlob)
+    const audio = new Audio(audioUrl)
+    activeAudioRef.current = audio
+    activeAudioUrlRef.current = audioUrl
+    setSpeakingPitchId(pitchId)
+    setLoadingPitchId(null)
+    audio.onended = () => {
+      if (token === narrationTokenRef.current) {
+        setSpeakingPitchId(null)
+      }
+      if (activeAudioUrlRef.current) {
+        URL.revokeObjectURL(activeAudioUrlRef.current)
+        activeAudioUrlRef.current = null
+      }
+      activeAudioRef.current = null
+    }
+    audio.onerror = () => {
+      if (token === narrationTokenRef.current) {
+        setSpeakingPitchId(null)
+      }
+      if (activeAudioUrlRef.current) {
+        URL.revokeObjectURL(activeAudioUrlRef.current)
+        activeAudioUrlRef.current = null
+      }
+      activeAudioRef.current = null
+    }
+    await audio.play()
+  }, [])
+
+  const speakPitch = useCallback(async (pitch: Pitch | null) => {
+    if (!pitch) {
+      return
+    }
+
+    const synth =
+      typeof window !== 'undefined' && 'speechSynthesis' in window
+        ? window.speechSynthesis
+        : null
+    if (speakingPitchId === pitch.id || loadingPitchId === pitch.id) {
+      stopNarration()
+      return
+    }
+
+    stopNarration()
+    const narrationToken = narrationTokenRef.current
+    const selectedVoiceName = normalizeKokoroVoiceName(pitch.voice)
+    const narrationText = buildNarrationText(pitch.title, pitch.summary)
+    setLoadingPitchId(pitch.id)
+
+    try {
+      const serverAudio = await fetchServerTtsAudio({
+        text: narrationText,
+        voiceId: selectedVoiceName,
+      })
+      if (serverAudio && narrationToken === narrationTokenRef.current) {
+        await playBlobNarration(pitch.id, serverAudio, narrationToken)
+        return
+      }
+    } catch {
+      // Fall back to browser speech synthesis.
+    }
+
+    if (narrationToken !== narrationTokenRef.current) {
+      return
+    }
+
+    if (!synth) {
+      setLoadingPitchId(null)
+      alert('Voice playback is not available in this browser.')
+      return
+    }
+
+    synth.cancel()
+    const utterance = new SpeechSynthesisUtterance(narrationText)
+    const selectedVoice = selectSpeechVoice(synth.getVoices(), selectedVoiceName)
+    if (selectedVoice) {
+      utterance.voice = selectedVoice
+      utterance.lang = selectedVoice.lang
+    } else {
+      utterance.lang = 'en-US'
+    }
+    utterance.rate = 1
+    utterance.pitch = 1
+    utterance.volume = 1
+    utterance.onstart = () => {
+      if (narrationToken !== narrationTokenRef.current) {
+        synth.cancel()
+        return
+      }
+      setLoadingPitchId(null)
+      setSpeakingPitchId(pitch.id)
+    }
+    utterance.onend = () => setSpeakingPitchId((activeId) => (activeId === pitch.id ? null : activeId))
+    utterance.onerror = () => {
+      setLoadingPitchId(null)
+      setSpeakingPitchId((activeId) => (activeId === pitch.id ? null : activeId))
+    }
+    synth.speak(utterance)
+  }, [loadingPitchId, playBlobNarration, speakingPitchId, stopNarration])
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      return
+    }
+    const synth = window.speechSynthesis
+    const warmVoices = () => {
+      synth.getVoices()
+    }
+    warmVoices()
+    synth.addEventListener('voiceschanged', warmVoices)
+    return () => {
+      synth.removeEventListener('voiceschanged', warmVoices)
+      stopNarration()
+    }
+  }, [stopNarration])
 
   const load = useCallback(async () => {
     if (!roomCode) return
@@ -194,22 +339,16 @@ export default function FinalRound() {
             )
             setPitches(finalRoundPitches)
             
-            // If all pitchers are ready, check if it's a truce or switch to ranking
+            // If all pitchers are ready, either transition to ranking (2+ pitches)
+            // or wait for backend to send results (0 or 1 valid pitch).
             const allPitchersReady = gameData.room.finalRoundPlayers.every(
               (player) => gameData.pitchStatusByPlayer?.[player] === 'ready'
             )
-            // Only switch to ranking when ALL pitches are loaded (one per final round player)
-            const allPitchesLoaded = finalRoundPitches.length === gameData.room.finalRoundPlayers.length
-            if (allPitchersReady && allPitchesLoaded) {
-              // Check if all pitches are empty (truce situation)
-              const allEmpty = finalRoundPitches.every(
-                (p) => p.title === 'Untitled Pitch' && p.summary === '' && (!p.usedMustHaves || p.usedMustHaves.length === 0)
-              )
-              
-              if (allEmpty) {
-                // Truce detected - backend should have already set phase to results
-                // Just wait for the next poll to catch the phase change
-                console.log('Truce detected - waiting for backend to process...')
+            if (allPitchersReady) {
+              if (finalRoundPitches.length <= 1) {
+                // Backend auto-resolves final round with 0/1 valid submissions.
+                // Wait for the next poll to redirect to results.
+                console.log('Final round auto-resolution in progress...')
               } else if (phase === 'pitching' && !hasStartedTransitionRef.current) {
                 // Normal ranking phase - start transition animation (only once)
                 hasStartedTransitionRef.current = true
@@ -313,7 +452,7 @@ export default function FinalRound() {
         title: pitchTitle || 'Untitled',
         summary: pitchText,
         usedMustHaves: selectedMustHaves,
-        voice: 'Neon Announcer',
+        voice,
         aiGenerated: false,
         sketchData,
         status: 'ready'
@@ -323,7 +462,7 @@ export default function FinalRound() {
     playActionSound('submit_pitch')
     setIsLocked(true)
     await load()
-  }, [roomCode, playerName, isLocked, selectedMustHaves, pitchTitle, pitchText, getSketchData, load])
+  }, [roomCode, playerName, isLocked, selectedMustHaves, pitchTitle, pitchText, getSketchData, load, voice])
 
   // Auto-submit when timer runs out (only for pitchers)
   useEffect(() => {
@@ -681,6 +820,24 @@ export default function FinalRound() {
                 onChange={(e) => setPitchText(e.target.value)}
                 disabled={isLocked}
               />
+              <div style={{ marginTop: '10px' }}>
+                <label htmlFor="final-round-voice" style={{ display: 'block', marginBottom: '6px' }}>
+                  Robot Voice
+                </label>
+                <select
+                  id="final-round-voice"
+                  className="input"
+                  value={voice}
+                  onChange={(e) => setVoice(e.target.value)}
+                  disabled={isLocked}
+                >
+                  {voiceOptions.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {surprise && (
                 <div className="card" style={{ marginTop: '12px', backgroundColor: '#d4a574' }}>
                   <strong>⭐ Final Round Surprise</strong>
@@ -990,10 +1147,30 @@ export default function FinalRound() {
                   e.currentTarget.style.boxShadow = 'none'
                 }}
               >
-                <div style={{ fontWeight: 700, marginBottom: '4px' }}>
-                  #{index + 1}: {pitch.title} by {pitch.player}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                  <div style={{ fontWeight: 700, marginBottom: '4px' }}>
+                    #{index + 1}: {pitch.title} by {pitch.player}
+                  </div>
+                  <button
+                    className="button secondary"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      e.preventDefault()
+                      void speakPitch(pitch)
+                    }}
+                    style={{ padding: '6px 10px', borderRadius: '10px', flexShrink: 0 }}
+                    aria-label={`Play pitch audio for ${pitch.player}`}
+                  >
+                    {loadingPitchId === pitch.id ? '⏳' : speakingPitchId === pitch.id ? '⏹️' : '🔊'}
+                  </button>
                 </div>
                 <div style={{ fontSize: '0.9rem', color: '#666' }}>{pitch.summary}</div>
+                {pitch.voice && (
+                  <div style={{ marginTop: '6px', fontSize: '0.82rem', color: '#6b6056' }}>
+                    Voice: {normalizeKokoroVoiceName(pitch.voice)}
+                  </div>
+                )}
                 {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                   <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#6b6056' }}>
                     <strong>MUST HAVEs:</strong> {pitch.usedMustHaves.join(', ')}

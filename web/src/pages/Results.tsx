@@ -27,6 +27,7 @@ type GameResponse = {
     finalRoundPlayers?: string[]
     round: number
     truceActivated?: boolean
+    roundNoParticipation?: boolean
     lastRoundWinner?: {
       player: string
       pitchId: string
@@ -67,6 +68,7 @@ export default function Results() {
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
   const [finalRoundPitches, setFinalRoundPitches] = useState<Pitch[]>([])
   const [truceActivated, setTruceActivated] = useState(false)
+  const [roundNoParticipation, setRoundNoParticipation] = useState(false)
   const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
   const animationCycleKeyRef = useRef('')
   const endGameSoundKeyRef = useRef('')
@@ -91,6 +93,7 @@ export default function Results() {
         setRound(data.room.round)
         setLastWinner(data.room.lastRoundWinner ?? null)
         setTruceActivated(data.room.truceActivated ?? false)
+        setRoundNoParticipation(data.room.roundNoParticipation ?? false)
         
         // Fetch final round pitches if there was a final round and game is over
         if (hasFinalRound && (data.room.gameWinner || data.room.gameWinners) && data.room.finalRoundPlayers) {
@@ -290,27 +293,63 @@ export default function Results() {
       })),
     [confettiPalette]
   )
+  const billRainPieces = useMemo(
+    () =>
+      Array.from({ length: 32 }, (_, index) => ({
+        id: index,
+        left: Math.random() * 100,
+        delay: Math.random() * 1.1,
+        duration: 3.4 + Math.random() * 2.4,
+        drift: (Math.random() - 0.5) * 180,
+        sway: 14 + Math.random() * 18,
+        rotation: (Math.random() - 0.5) * 36,
+        scale: 0.82 + Math.random() * 0.48,
+      })),
+    []
+  )
 
   return (
     <>
       {endGameCelebration && (
-        <div className="confetti-overlay" aria-hidden>
-          {confettiPieces.map((piece) => (
-            <span
-              key={piece.id}
-              className="confetti-piece"
-              style={{
-                left: `${piece.left}%`,
-                top: '-12vh',
-                backgroundColor: piece.color,
-                animationDelay: `${piece.delay}s`,
-                animationDuration: `${piece.duration}s`,
-                ['--confetti-drift' as string]: `${piece.drift}px`,
-                rotate: `${piece.rotate}deg`,
-              }}
-            />
-          ))}
-        </div>
+        <>
+          <div className="confetti-overlay" aria-hidden>
+            {confettiPieces.map((piece) => (
+              <span
+                key={piece.id}
+                className="confetti-piece"
+                style={{
+                  left: `${piece.left}%`,
+                  top: '-12vh',
+                  backgroundColor: piece.color,
+                  animationDelay: `${piece.delay}s`,
+                  animationDuration: `${piece.duration}s`,
+                  ['--confetti-drift' as string]: `${piece.drift}px`,
+                  rotate: `${piece.rotate}deg`,
+                }}
+              />
+            ))}
+          </div>
+          <div className="money-rain-overlay" aria-hidden>
+            {billRainPieces.map((piece) => (
+              <span
+                key={piece.id}
+                className="money-bill"
+                style={{
+                  left: `${piece.left}%`,
+                  top: '-14vh',
+                  animationDelay: `${piece.delay}s`,
+                  animationDuration: `${piece.duration}s`,
+                  ['--bill-drift' as string]: `${piece.drift}px`,
+                  ['--bill-sway' as string]: `${piece.sway}px`,
+                  ['--bill-rotation' as string]: `${piece.rotation}deg`,
+                  ['--bill-scale' as string]: `${piece.scale}`,
+                }}
+              >
+                <span className="money-bill-symbol">$</span>
+              </span>
+            ))}
+          </div>
+        </>
       )}
       <section className="page-header">
         <div>
@@ -329,17 +368,21 @@ export default function Results() {
               <span>
                 Final Round! 🔥
               </span>
+            ) : roundNoParticipation ? (
+              'No Winner This Round 😢'
             ) : (
               'Round Results'
             )}
           </h1>
           <p>
             {gameWinner ? (
-              <span>First player to reach $500 wins and claims victory! Congrats {gameWinnerLabel}.</span>
+              <span> Congrats {gameWinnerLabel} for winning the game.</span>
             ) : gameWinners.length > 1 && !finalRoundNeeded ? (
               <span>Multiple players finished with the highest score: {gameWinners.join(', ')}!</span>
             ) : finalRoundNeeded ? (
               <span>The top players will compete in a final round to determine the ultimate winner!</span>
+            ) : roundNoParticipation ? (
+              <span>Nobody won this round because all pitch submissions were empty.</span>
             ) : (
               'View results and prepare for the next round.'
             )}
@@ -365,7 +408,9 @@ export default function Results() {
         <div className="panel">
           <h3>Winner</h3>
           <div className="timer" style={{ display: 'flex', alignItems: 'center', gap: '10px', justifyContent: 'center' }}>
-            {lastWinner?.player ? (
+            {roundNoParticipation ? (
+              <span style={{ fontWeight: 600 }}>No winner this round</span>
+            ) : lastWinner?.player ? (
               <>
                 {playerMascots[lastWinner.player] && (
                   <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--results">
@@ -404,6 +449,11 @@ export default function Results() {
               'TBD'
             )}
           </div>
+          {roundNoParticipation && (
+            <p style={{ marginTop: '8px' }}>
+              Nobody participated, so all pitches were discarded and no earnings were awarded.
+            </p>
+          )}
           {lastWinner?.pitchTitle && (
             <p style={{ marginTop: '8px' }}>“{lastWinner.pitchTitle}”</p>
           )}
@@ -420,7 +470,7 @@ export default function Results() {
               }}
             />
           )}
-          {champion && !lastWinner && (
+          {champion && !lastWinner && !roundNoParticipation && (
             <p style={{ marginTop: '8px' }}>with ${champion[1] * 100}</p>
           )}
           {lastWinner?.walrusSurpriseWinner && (
@@ -680,6 +730,10 @@ export default function Results() {
           <p>
             <strong>Final Round!</strong> The top players will compete one last time.
             Host will start the final round where these players pitch and everyone else ranks them.
+          </p>
+        ) : roundNoParticipation ? (
+          <p>
+            No one participated this round. Start the next round to continue the game.
           </p>
         ) : (
           <p>

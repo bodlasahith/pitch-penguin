@@ -10,7 +10,6 @@ import Pitch from './pages/Pitch'
 import Reveal from './pages/Reveal'
 import Results from './pages/Results'
 import FinalRound from './pages/FinalRound'
-import Vote from './pages/Vote'
 
 function App() {
   const withLayout = (page: ReactElement) => {
@@ -28,8 +27,6 @@ function App() {
       <Route path="/pitch/:code" element={withLayout(<Pitch />)} />
       <Route path="/reveal" element={withLayout(<Reveal />)} />
       <Route path="/reveal/:code" element={withLayout(<Reveal />)} />
-      <Route path="/vote" element={withLayout(<Vote />)} />
-      <Route path="/vote/:code" element={withLayout(<Vote />)} />
       <Route path="/results" element={withLayout(<Results />)} />
       <Route path="/results/:code" element={withLayout(<Results />)} />
       <Route path="/final-round" element={withLayout(<FinalRound />)} />

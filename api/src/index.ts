@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 import Fastify from "fastify";
+import { Server as SocketIOServer, type Socket as SocketIOSocket } from "socket.io";
 import cardsData from "./cards.json" with { type: "json" };
 
 const __filename = fileURLToPath(import.meta.url);
@@ -94,6 +95,9 @@ type RoomGameState = {
   round: number;
   walrusAskTimerSeconds: number;
   pitchTimerSeconds: number;
+  askDeckQueue: string[];
+  mustHaveDeckQueue: string[];
+  surpriseDeckQueue: string[];
   askOptions: string[];
   selectedAsk: string | null;
   askSelectionExpiresAt: number | null;
@@ -119,6 +123,7 @@ type RoomGameState = {
   finalRoundWalrus?: string | null;
   finalRoundTruceByPlayer: Record<string, boolean>;
   truceActivated?: boolean;
+  roundNoParticipation: boolean;
   playersReady: Set<string>;
   timerStarted: boolean;
 };
@@ -126,6 +131,7 @@ type RoomGameState = {
 const server = Fastify({
   logger: true,
 });
+let io: SocketIOServer | null = null;
 
 const RULES = cardsData.rules;
 const ASK_DECK = cardsData.askDeck;
@@ -367,11 +373,28 @@ const getNextPhase = (current: GamePhase) => {
   return PHASE_ORDER[index + 1];
 };
 
+const drawCardsFromQueue = (queue: string[], sourceDeck: string[], count: number) => {
+  const drawn: string[] = [];
+  const drawsNeeded = Math.max(0, count);
+  for (let idx = 0; idx < drawsNeeded; idx += 1) {
+    if (queue.length === 0) {
+      queue.push(...shuffle(sourceDeck));
+    }
+    const card = queue.shift();
+    if (!card) {
+      break;
+    }
+    drawn.push(card);
+  }
+  return drawn;
+};
+
 const initializeGameState = (room: Room): RoomGameState => {
   const walrusQueue = room.players.map((p) => p.name);
   const walrus = walrusQueue[Math.floor(Math.random() * walrusQueue.length)] ?? "Walrus";
   const walrusQueueIndex = walrusQueue.indexOf(walrus);
-  const askOptions = shuffle(ASK_DECK).slice(0, 3);
+  const askDeckQueue = shuffle(ASK_DECK);
+  const askOptions = drawCardsFromQueue(askDeckQueue, ASK_DECK, 3);
   const pitchStatusByPlayer: Record<string, PlayerPitchStatus> = {};
   const playerScores: Record<string, number> = {};
   room.players.forEach((player) => {
@@ -387,6 +410,9 @@ const initializeGameState = (room: Room): RoomGameState => {
     round: 0,
     walrusAskTimerSeconds: 30,
     pitchTimerSeconds: 120,
+    askDeckQueue,
+    mustHaveDeckQueue: shuffle(MUST_HAVE_DECK),
+    surpriseDeckQueue: shuffle(SURPRISE_DECK),
     askOptions,
     selectedAsk: null,
     askSelectionExpiresAt: null,
@@ -411,6 +437,7 @@ const initializeGameState = (room: Room): RoomGameState => {
     judgeViewedPitches: {},
     finalRoundWalrus: null,
     finalRoundTruceByPlayer: {},
+    roundNoParticipation: false,
     playersReady: new Set(),
     timerStarted: false,
   };
@@ -424,6 +451,171 @@ const getRoomGameState = (room: Room) => {
   const created = initializeGameState(room);
   roomGameStates.set(room.code, created);
   return created;
+};
+
+const normalizePitchForClient = (pitch: Pitch) => {
+  const title = pitch.title?.trim() ?? "";
+  const summary = pitch.summary?.trim() ?? "";
+  const untitledNoPitch = (!summary && !title) || (!summary && isUntitledPitchTitle(title));
+  const missingMustHaves = (pitch.usedMustHaves?.length ?? 0) === 0;
+  const missingContent = !title || !summary;
+  const derivedDisqualified = missingMustHaves || missingContent || untitledNoPitch;
+  return {
+    ...pitch,
+    isValid: pitch.isValid ?? !derivedDisqualified,
+    isDisqualified: pitch.isDisqualified ?? derivedDisqualified,
+  };
+};
+
+const isEmptyPitchSubmission = (pitch?: Pitch | null) => {
+  if (!pitch) {
+    return true;
+  }
+  const title = pitch.title?.trim() ?? "";
+  const summary = pitch.summary?.trim() ?? "";
+  return (!title && !summary) || (!summary && isUntitledPitchTitle(title));
+};
+
+const areAllPitchersEmpty = (room: Room, gameState: RoomGameState, pitches: Pitch[]) => {
+  const pitchers = room.players.filter((player) => player.name !== gameState.walrus);
+  if (pitchers.length === 0) {
+    return false;
+  }
+  return pitchers.every((player) => {
+    const pitch = pitches.find((item) => item.player === player.name);
+    return isEmptyPitchSubmission(pitch);
+  });
+};
+
+const isFinalRoundEligiblePitch = (pitch?: Pitch | null) => {
+  if (!pitch) {
+    return false;
+  }
+  if (isEmptyPitchSubmission(pitch)) {
+    return false;
+  }
+  const title = pitch.title?.trim() ?? "";
+  const summary = pitch.summary?.trim() ?? "";
+  const hasRequiredMustHaves = (pitch.usedMustHaves?.length ?? 0) >= 2;
+  if (!title || !summary || !hasRequiredMustHaves) {
+    return false;
+  }
+  return pitch.isValid !== false && !pitch.isDisqualified;
+};
+
+const determineTopGameWinners = (scores: Record<string, number>) => {
+  const entries = Object.entries(scores);
+  if (entries.length === 0) {
+    return [];
+  }
+  const max = Math.max(...entries.map(([, score]) => score));
+  return entries.filter(([, score]) => score === max).map(([player]) => player);
+};
+
+const completeFinalRoundWithoutRanking = (
+  room: Room,
+  gameState: RoomGameState,
+  eligiblePitches: Pitch[],
+) => {
+  // End the final-round timer and lock all finalists.
+  if (gameState.pitchTimerTimeoutId) {
+    clearTimeout(gameState.pitchTimerTimeoutId);
+    gameState.pitchTimerTimeoutId = null;
+  }
+  gameState.pitchEndsAt = null;
+  gameState.timerStarted = false;
+  gameState.finalRoundPlayers.forEach((playerName) => {
+    gameState.pitchStatusByPlayer[playerName] = "ready";
+  });
+
+  const judges = room.players
+    .filter((player) => !gameState.finalRoundPlayers.includes(player.name))
+    .map((player) => player.name);
+
+  if (eligiblePitches.length === 0) {
+    gameState.truceActivated = true;
+  } else {
+    gameState.truceActivated = false;
+    const onlyPitch = eligiblePitches[0];
+    const pointsAwarded = judges.length;
+    gameState.playerScores[onlyPitch.player] =
+      (gameState.playerScores[onlyPitch.player] ?? 0) + pointsAwarded;
+  }
+
+  const winners = determineTopGameWinners(gameState.playerScores);
+  if (winners.length === 1) {
+    gameState.gameWinner = winners[0];
+    gameState.gameWinners = [winners[0]];
+  } else {
+    gameState.gameWinner = null;
+    gameState.gameWinners = winners;
+  }
+
+  room.status = "results";
+  gameState.phase = "results";
+};
+
+const buildRoomSnapshot = (room: Room) => {
+  const gameState = getRoomGameState(room);
+  gameState.phase = room.status;
+  const judgeViewedPitches: Record<string, string[]> = {};
+  Object.entries(gameState.judgeViewedPitches).forEach(([judge, pitchSet]) => {
+    judgeViewedPitches[judge] = Array.from(pitchSet);
+  });
+  const pitches = (roomPitches.get(room.code) ?? []).map(normalizePitchForClient);
+  return {
+    ok: true,
+    code: room.code,
+    status: room.status,
+    players: room.players,
+    capacity: ROOM_CAPACITY,
+    walrus: gameState.walrus,
+    room: {
+      code: room.code,
+      serverNow: Date.now(),
+      phase: room.status,
+      walrus: gameState.walrus,
+      round: gameState.round,
+      playerScores: gameState.playerScores,
+      askOptions: gameState.askOptions,
+      selectedAsk: gameState.selectedAsk,
+      walrusAskTimerSeconds: gameState.walrusAskTimerSeconds,
+      pitchTimerSeconds: gameState.pitchTimerSeconds,
+      robotVoiceEnabled: gameState.robotVoiceEnabled,
+      askSelectionExpiresAt: gameState.askSelectionExpiresAt,
+      pitchEndsAt: gameState.pitchEndsAt,
+      walrusSurprisePlayer: gameState.walrusSurprisePlayer,
+      gameWinner: gameState.gameWinner,
+      gameWinners: gameState.gameWinners,
+      finalRoundPlayers: gameState.finalRoundPlayers,
+      finalRoundRankings: gameState.finalRoundRankings,
+      judgeViewedPitches,
+      challengeReveal: gameState.challengeReveal,
+      lastRoundWinner: gameState.lastRoundWinner,
+      roundNoParticipation: gameState.roundNoParticipation,
+      viewedPitchIds: Array.from(gameState.viewedPitchIds),
+      timerStarted: gameState.timerStarted,
+      playersReadyCount: gameState.playersReady.size,
+      playersTotal: room.players.length,
+    },
+    mustHavesByPlayer: gameState.mustHavesByPlayer,
+    surpriseByPlayer: gameState.surpriseByPlayer,
+    pitchStatusByPlayer: gameState.pitchStatusByPlayer,
+    playerScores: gameState.playerScores,
+    disqualifiedPlayers: Array.from(gameState.disqualifiedPlayers),
+    pitches,
+  };
+};
+
+const emitRoomSnapshot = (code: string) => {
+  if (!io) {
+    return;
+  }
+  const room = rooms.get(code);
+  if (!room) {
+    return;
+  }
+  io.to(code).emit("room:state", buildRoomSnapshot(room));
 };
 
 const createJoinCode = () => {
@@ -535,24 +727,21 @@ const assignNextHost = (room: Room) => {
 };
 
 const dealMustHaves = (room: Room, gameState: RoomGameState) => {
-  const shuffled = shuffle(MUST_HAVE_DECK);
-  let index = 0;
   const byPlayer: Record<string, string[]> = {};
   const surpriseByPlayer: Record<string, string | null> = {};
   room.players.forEach((player) => {
     if (player.name === gameState.walrus) {
       return;
     }
-    byPlayer[player.name] = shuffled.slice(index, index + 4);
-    index += 4;
+    byPlayer[player.name] = drawCardsFromQueue(gameState.mustHaveDeckQueue, MUST_HAVE_DECK, 4);
   });
   const eligible = room.players.filter((player) => player.name !== gameState.walrus);
   const surprisePlayer = eligible.length
     ? eligible[Math.floor(Math.random() * eligible.length)].name
     : null;
+  const surpriseCard = drawCardsFromQueue(gameState.surpriseDeckQueue, SURPRISE_DECK, 1)[0] ?? null;
   eligible.forEach((player) => {
-    surpriseByPlayer[player.name] =
-      player.name === surprisePlayer ? shuffle(SURPRISE_DECK)[0] : null;
+    surpriseByPlayer[player.name] = player.name === surprisePlayer ? surpriseCard : null;
   });
   gameState.mustHavesByPlayer = byPlayer;
   gameState.surpriseByPlayer = surpriseByPlayer;
@@ -560,22 +749,19 @@ const dealMustHaves = (room: Room, gameState: RoomGameState) => {
 };
 
 const dealFinalRoundCards = (room: Room, gameState: RoomGameState) => {
-  // For final round: each player gets exactly 3 must-haves and 1 walrus surprise
-  const shuffled = shuffle(MUST_HAVE_DECK);
-  let index = 0;
+  // For final round: each player gets exactly 3 must-haves and 1 walrus surprise.
   const byPlayer: Record<string, string[]> = {};
   const surpriseByPlayer: Record<string, string | null> = {};
 
-  // Deal 3 must-haves to each final round player
+  // Deal 3 must-haves to each final round player.
   gameState.finalRoundPlayers.forEach((playerName) => {
-    byPlayer[playerName] = shuffled.slice(index, index + 3);
-    index += 3;
+    byPlayer[playerName] = drawCardsFromQueue(gameState.mustHaveDeckQueue, MUST_HAVE_DECK, 3);
   });
 
-  // Give each final round player a walrus surprise
-  const surpriseShuffled = shuffle(SURPRISE_DECK);
-  gameState.finalRoundPlayers.forEach((playerName, idx) => {
-    surpriseByPlayer[playerName] = surpriseShuffled[idx % surpriseShuffled.length];
+  // Give each final round player a walrus surprise.
+  gameState.finalRoundPlayers.forEach((playerName) => {
+    surpriseByPlayer[playerName] =
+      drawCardsFromQueue(gameState.surpriseDeckQueue, SURPRISE_DECK, 1)[0] ?? null;
   });
 
   gameState.mustHavesByPlayer = byPlayer;
@@ -684,45 +870,36 @@ const finalizeFinalRoundPitches = (room: Room, gameState: RoomGameState) => {
   if (room.status !== "final-round") {
     return;
   }
+  const rawList = roomPitches.get(room.code) ?? [];
+  const finalists = new Set(gameState.finalRoundPlayers);
 
-  const list = roomPitches.get(room.code) ?? [];
-
-  // Auto-submit pitches for final round players who haven't submitted
-  gameState.finalRoundPlayers.forEach((playerName: string) => {
-    const existing = list.find((p) => p.player === playerName);
-    if (!existing) {
-      list.push({
-        id: `pitch-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-        player: playerName,
-        title: "Untitled Pitch",
-        summary: "",
-        voice: "Neon Announcer",
-        usedMustHaves: [],
-        aiGenerated: false,
-        isValid: false,
-        isDisqualified: false,
-      });
-      return;
-    }
-    // Final round requires at least 2 must-haves
-    const isValid = (existing.usedMustHaves ?? []).length >= 2;
-    const existingIndex = list.findIndex((p) => p.player === playerName);
-    if (existingIndex >= 0) {
-      list[existingIndex] = {
-        ...existing,
-        isValid,
-        isDisqualified: existing.isDisqualified ?? false,
-      };
-    }
-  });
-
-  roomPitches.set(room.code, list);
-
-  // Move to final round voting (judges will now rank)
-  // Stay in final round phase but mark all pitches as ready
-  gameState.finalRoundPlayers.forEach((playerName: string) => {
+  // Lock all finalists even if they never submitted.
+  gameState.finalRoundPlayers.forEach((playerName) => {
     gameState.pitchStatusByPlayer[playerName] = "ready";
   });
+
+  // Keep only valid participating finalist submissions.
+  const eligiblePitches = rawList
+    .filter((pitch) => finalists.has(pitch.player))
+    .filter((pitch) => isFinalRoundEligiblePitch(pitch));
+
+  roomPitches.set(room.code, eligiblePitches);
+
+  // 0 eligible pitches => automatic truce/end game.
+  // 1 eligible pitch => auto-resolve final round without ranking.
+  if (eligiblePitches.length <= 1) {
+    completeFinalRoundWithoutRanking(room, gameState, eligiblePitches);
+    return;
+  }
+
+  // Ranking phase remains in final-round when 2+ eligible pitches exist.
+  if (gameState.pitchTimerTimeoutId) {
+    clearTimeout(gameState.pitchTimerTimeoutId);
+    gameState.pitchTimerTimeoutId = null;
+  }
+  gameState.pitchEndsAt = null;
+  gameState.timerStarted = false;
+  gameState.truceActivated = false;
 };
 
 const finalizePitchPhase = (room: Room, gameState: RoomGameState) => {
@@ -765,6 +942,15 @@ const finalizePitchPhase = (room: Room, gameState: RoomGameState) => {
   });
 
   roomPitches.set(room.code, list);
+  if (areAllPitchersEmpty(room, gameState, list)) {
+    roomPitches.delete(room.code);
+    gameState.lastRoundWinner = null;
+    gameState.roundNoParticipation = true;
+    room.status = "results";
+    gameState.phase = "results";
+    return;
+  }
+  gameState.roundNoParticipation = false;
   startRevealPhase(room, gameState);
 };
 
@@ -807,10 +993,11 @@ const startFinalRound = (room: Room, gameState: RoomGameState) => {
   gameState.judgeViewedPitches = {};
 
   // Clear previous round data
-  // Pick ONE random ask from the deck (no walrus selection in final round)
-  const randomAsk = shuffle(ASK_DECK)[0] ?? "Create something amazing!";
+  // Pick ONE ask from the non-repeating queue (no walrus selection in final round).
+  const randomAsk = drawCardsFromQueue(gameState.askDeckQueue, ASK_DECK, 1)[0] ?? "Create something amazing!";
   gameState.askOptions = [randomAsk]; // Only one option
   gameState.selectedAsk = randomAsk; // Auto-selected
+  gameState.truceActivated = false;
   gameState.challengeReveal = null;
   gameState.viewedPitchIds.clear();
   gameState.challenges = [];
@@ -856,10 +1043,11 @@ const startDealPhase = (room: Room, gameState: RoomGameState) => {
     gameState.pitchTimerTimeoutId = null;
   }
   gameState.pitchEndsAt = null;
-  gameState.askOptions = shuffle(ASK_DECK).slice(0, 3);
+  gameState.askOptions = drawCardsFromQueue(gameState.askDeckQueue, ASK_DECK, 3);
   gameState.selectedAsk = null;
   gameState.challengeReveal = null;
   gameState.viewedPitchIds.clear();
+  gameState.roundNoParticipation = false;
   dealMustHaves(room, gameState);
   room.players.forEach((player) => {
     gameState.pitchStatusByPlayer[player.name] = "pending";
@@ -943,15 +1131,14 @@ server.get("/api/room/:code", async (request) => {
     };
   }
   room.lastActiveAt = Date.now();
-  const gameState = getRoomGameState(room);
-  gameState.phase = room.status;
+  const snapshot = buildRoomSnapshot(room);
   return {
-    ok: true,
-    code,
-    status: room.status,
-    players: room.players,
-    capacity: ROOM_CAPACITY,
-    walrus: gameState.walrus,
+    ok: snapshot.ok,
+    code: snapshot.code,
+    status: snapshot.status,
+    players: snapshot.players,
+    capacity: snapshot.capacity,
+    walrus: snapshot.walrus,
   };
 });
 
@@ -1035,6 +1222,7 @@ server.post("/api/rooms/join", async (request) => {
     gameState.walrusQueue = room.players.map((p) => p.name);
   }
 
+  emitRoomSnapshot(code);
   return {
     ok: true,
     room,
@@ -1104,6 +1292,7 @@ server.post("/api/rooms/leave", async (request) => {
     }
   }
 
+  emitRoomSnapshot(code);
   return {
     ok: true,
     room,
@@ -1132,53 +1321,7 @@ server.get("/api/room/:code/game", async (request) => {
       message: "Room not found",
     };
   }
-  const gameState = getRoomGameState(room);
-
-  // Convert Set to array for JSON serialization
-  const disqualifiedArray = Array.from(gameState.disqualifiedPlayers);
-
-  // Convert judgeViewedPitches Sets to arrays
-  const judgeViewedPitchesArray: Record<string, string[]> = {};
-  Object.entries(gameState.judgeViewedPitches).forEach(([judge, pitchSet]) => {
-    judgeViewedPitchesArray[judge] = Array.from(pitchSet);
-  });
-
-  return {
-    ok: true,
-    room: {
-      code: room.code,
-      serverNow: Date.now(),
-      phase: room.status,
-      walrus: gameState.walrus,
-      round: gameState.round,
-      playerScores: gameState.playerScores,
-      askOptions: gameState.askOptions,
-      selectedAsk: gameState.selectedAsk,
-      walrusAskTimerSeconds: gameState.walrusAskTimerSeconds,
-      pitchTimerSeconds: gameState.pitchTimerSeconds,
-      robotVoiceEnabled: gameState.robotVoiceEnabled,
-      askSelectionExpiresAt: gameState.askSelectionExpiresAt,
-      pitchEndsAt: gameState.pitchEndsAt,
-      walrusSurprisePlayer: gameState.walrusSurprisePlayer,
-      gameWinner: gameState.gameWinner,
-      gameWinners: gameState.gameWinners,
-      finalRoundPlayers: gameState.finalRoundPlayers,
-      finalRoundRankings: gameState.finalRoundRankings,
-      judgeViewedPitches: judgeViewedPitchesArray,
-      challengeReveal: gameState.challengeReveal,
-      lastRoundWinner: gameState.lastRoundWinner,
-      viewedPitchIds: Array.from(gameState.viewedPitchIds),
-      timerStarted: gameState.timerStarted,
-      playersReadyCount: gameState.playersReady.size,
-      playersTotal: room.players.length,
-    },
-    players: room.players,
-    mustHavesByPlayer: gameState.mustHavesByPlayer,
-    surpriseByPlayer: gameState.surpriseByPlayer,
-    pitchStatusByPlayer: gameState.pitchStatusByPlayer,
-    playerScores: gameState.playerScores,
-    disqualifiedPlayers: disqualifiedArray,
-  };
+  return buildRoomSnapshot(room);
 });
 
 server.post("/api/room/:code/player-ready", async (request) => {
@@ -1233,6 +1376,7 @@ server.post("/api/room/:code/player-ready", async (request) => {
     }
   }
 
+  emitRoomSnapshot(code);
   return {
     ok: true,
     phase,
@@ -1278,6 +1422,7 @@ server.post("/api/room/:code/advance", async (request) => {
     room.status = nextPhase;
     gameState.phase = nextPhase;
   }
+  emitRoomSnapshot(code);
   return {
     ok: true,
     phase: room.status,
@@ -1309,6 +1454,7 @@ server.post("/api/room/:code/select-ask", async (request) => {
   }
   gameState.askSelectionExpiresAt = null;
   startPitchPhase(room, gameState);
+  emitRoomSnapshot(code);
   return {
     ok: true,
     selectedAsk: ask,
@@ -1335,6 +1481,7 @@ server.post("/api/room/:code/player-status", async (request) => {
   }
   const gameState = getRoomGameState(room);
   gameState.pitchStatusByPlayer[playerName] = status;
+  emitRoomSnapshot(code);
   return {
     ok: true,
     pitchStatusByPlayer: gameState.pitchStatusByPlayer,
@@ -1353,6 +1500,7 @@ server.post("/api/room/:code/toggle-voice", async (request) => {
   }
   const gameState = getRoomGameState(room);
   gameState.robotVoiceEnabled = Boolean(body.enabled);
+  emitRoomSnapshot(code);
   return {
     ok: true,
     enabled: gameState.robotVoiceEnabled,
@@ -1441,6 +1589,7 @@ server.post("/api/room/:code/mascot", async (request) => {
     };
   }
   player.mascot = requestedMascot;
+  emitRoomSnapshot(code);
   return {
     ok: true,
     mascot: player.mascot,
@@ -1523,10 +1672,29 @@ server.post("/api/room/:code/pitch", async (request) => {
       .filter((player) => player.name !== gameState.walrus)
       .every((player) => gameState.pitchStatusByPlayer[player.name] === "ready");
     if (allReady) {
-      startRevealPhase(room, gameState);
+      if (areAllPitchersEmpty(room, gameState, list)) {
+        roomPitches.delete(code);
+        gameState.lastRoundWinner = null;
+        gameState.roundNoParticipation = true;
+        room.status = "results";
+        gameState.phase = "results";
+      } else {
+        gameState.roundNoParticipation = false;
+        startRevealPhase(room, gameState);
+      }
     }
   }
 
+  if (room.status === "final-round") {
+    const allFinalistsReady = gameState.finalRoundPlayers.every(
+      (name) => gameState.pitchStatusByPlayer[name] === "ready",
+    );
+    if (allFinalistsReady) {
+      finalizeFinalRoundPitches(room, gameState);
+    }
+  }
+
+  emitRoomSnapshot(code);
   return {
     ok: true,
     pitch,
@@ -1646,6 +1814,7 @@ Keep it exciting, founder-friendly, and ready to be read aloud. No fluff or disc
     gameState.playerScores[playerName] =
       (gameState.playerScores[playerName] ?? 0) - AI_GENERATION_COST;
 
+    emitRoomSnapshot(code);
     return {
       ok: true,
       pitch: generatedText,
@@ -1715,6 +1884,7 @@ server.post("/api/room/:code/pitch-viewed", async (request) => {
       gameState.judgeViewedPitches[viewer] = new Set();
     }
     gameState.judgeViewedPitches[viewer].add(pitchId);
+    emitRoomSnapshot(code);
     return {
       ok: true,
       viewedPitchIds: Array.from(gameState.judgeViewedPitches[viewer]),
@@ -1729,6 +1899,7 @@ server.post("/api/room/:code/pitch-viewed", async (request) => {
     };
   }
   gameState.viewedPitchIds.add(pitchId);
+  emitRoomSnapshot(code);
   return {
     ok: true,
     viewedPitchIds: Array.from(gameState.viewedPitchIds),
@@ -1803,6 +1974,7 @@ server.post("/api/room/:code/judge", async (request) => {
       createdAt: new Date().toISOString(),
     };
   }
+  gameState.roundNoParticipation = false;
 
   // Check if game is over
   if (checkGameEnd(gameState)) {
@@ -1816,6 +1988,7 @@ server.post("/api/room/:code/judge", async (request) => {
   room.status = "results";
   gameState.phase = "results";
 
+  emitRoomSnapshot(code);
   return {
     ok: true,
     playerScores: gameState.playerScores,
@@ -1885,6 +2058,7 @@ server.post("/api/room/:code/challenge", async (request) => {
 
   gameState.challenges.push(challenge);
 
+  emitRoomSnapshot(code);
   return {
     ok: true,
     challenge,
@@ -1908,7 +2082,7 @@ server.post("/api/room/:code/advance-round", async (request) => {
   if (gameState.gameWinner) {
     return {
       ok: false,
-      message: "Game has ended. Use /restart to play again.",
+      message: "Game has ended.",
     };
   }
 
@@ -1916,6 +2090,7 @@ server.post("/api/room/:code/advance-round", async (request) => {
   if (gameState.finalRoundPlayers.length > 0) {
     // Start final round
     startFinalRound(room, gameState);
+    emitRoomSnapshot(code);
     return {
       ok: true,
       finalRoundStarted: true,
@@ -1933,6 +2108,7 @@ server.post("/api/room/:code/advance-round", async (request) => {
   gameState.challengeReveal = null;
   gameState.viewedPitchIds.clear();
   gameState.disqualifiedPlayers.clear();
+  gameState.roundNoParticipation = false;
   roomPitches.delete(code);
 
   // Reset pitch statuses
@@ -1943,6 +2119,7 @@ server.post("/api/room/:code/advance-round", async (request) => {
   // Start next round with deal phase
   startDealPhase(room, gameState);
 
+  emitRoomSnapshot(code);
   return {
     ok: true,
     round: gameState.round,
@@ -1991,6 +2168,40 @@ server.post("/api/room/:code/tiebreaker-ranking", async (request) => {
     };
   }
 
+  const pitches = roomPitches.get(code) ?? [];
+  const eligiblePitchIds = new Set(
+    pitches
+      .filter((pitch) => gameState.finalRoundPlayers.includes(pitch.player))
+      .filter((pitch) => isFinalRoundEligiblePitch(pitch))
+      .map((pitch) => pitch.id),
+  );
+  if (eligiblePitchIds.size < 2) {
+    return {
+      ok: false,
+      message: "Final round ranking is not required for fewer than two valid pitches",
+    };
+  }
+  if (rankedPitchIds.length !== eligiblePitchIds.size) {
+    return {
+      ok: false,
+      message: "Rankings must include every valid final-round pitch exactly once",
+    };
+  }
+  const rankedUnique = new Set(rankedPitchIds);
+  if (rankedUnique.size !== rankedPitchIds.length) {
+    return {
+      ok: false,
+      message: "Rankings contain duplicate pitches",
+    };
+  }
+  const hasUnknownPitch = rankedPitchIds.some((pitchId) => !eligiblePitchIds.has(pitchId));
+  if (hasUnknownPitch) {
+    return {
+      ok: false,
+      message: "Rankings include an invalid or discarded pitch",
+    };
+  }
+
   gameState.finalRoundRankings[playerName] = rankedPitchIds;
 
   // Check if all judges have submitted rankings
@@ -2002,9 +2213,8 @@ server.post("/api/room/:code/tiebreaker-ranking", async (request) => {
 
   if (allJudgesVoted) {
     // Tally rankings with new earnings-based scoring
-    const pitches = roomPitches.get(code) ?? [];
     const earnings: Record<string, number> = {};
-    const numPlayers = gameState.finalRoundPlayers.length;
+    const numPlayers = eligiblePitchIds.size;
 
     // Initialize earnings for final round players
     gameState.finalRoundPlayers.forEach((player: string) => {
@@ -2049,6 +2259,7 @@ server.post("/api/room/:code/tiebreaker-ranking", async (request) => {
     gameState.phase = "results";
   }
 
+  emitRoomSnapshot(code);
   return {
     ok: true,
     allJudgesVoted,
@@ -2072,6 +2283,7 @@ server.post("/api/room/:code/restart", async (request) => {
   roomPitches.delete(code);
   room.status = "lobby";
 
+  emitRoomSnapshot(code);
   return {
     ok: true,
     message: "Game restarted",
@@ -2193,8 +2405,49 @@ server.post("/api/round/vote", async (request) => {
   return applyRoundResult(pitchId, voter);
 });
 
+const setupSocketServer = () => {
+  io = new SocketIOServer(server.server, {
+    cors: {
+      origin: true,
+      credentials: true,
+    },
+  });
+
+  io.on("connection", (socket: SocketIOSocket) => {
+    socket.on("room:join", (payload: { code?: string; playerName?: string }) => {
+      const code = payload.code?.toUpperCase().trim() ?? "";
+      if (!code) {
+        socket.emit("room:error", { message: "Room code is required" });
+        return;
+      }
+      const room = rooms.get(code);
+      if (!room) {
+        socket.emit("room:error", { message: "Room not found", code });
+        return;
+      }
+      socket.join(code);
+      socket.data.roomCode = code;
+      socket.data.playerName = payload.playerName?.trim() ?? "";
+      socket.emit("room:state", buildRoomSnapshot(room));
+    });
+
+    socket.on("room:leave", (payload?: { code?: string }) => {
+      const code = payload?.code?.toUpperCase().trim() ?? socket.data.roomCode;
+      if (!code) {
+        return;
+      }
+      socket.leave(code);
+      if (socket.data.roomCode === code) {
+        delete socket.data.roomCode;
+        delete socket.data.playerName;
+      }
+    });
+  });
+};
+
 const start = async () => {
   try {
+    setupSocketServer();
     await server.listen({ port: 3001, host: "0.0.0.0" });
   } catch (err) {
     server.log.error(err);

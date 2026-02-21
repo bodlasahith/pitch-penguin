@@ -264,6 +264,80 @@
   margin: 0 0 8px;
 }
 
+.ai-challenge-modal {
+  position: relative;
+  overflow: hidden;
+  border-width: 2px;
+  transition: transform 240ms ease, box-shadow 240ms ease, border-color 240ms ease;
+}
+
+.ai-challenge-modal::before {
+  content: '';
+  position: absolute;
+  inset: -80% -20% auto;
+  height: 160%;
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0),
+    rgba(255, 255, 255, 0.45),
+    rgba(255, 255, 255, 0)
+  );
+  transform: translateX(-40%) rotate(8deg);
+  pointer-events: none;
+  opacity: 0;
+}
+
+.ai-challenge-modal.is-building {
+  border-color: rgba(118, 96, 72, 0.32);
+  background: linear-gradient(135deg, #fff6e3, #fff1d8 55%, #ffe4c5);
+  box-shadow: 0 24px 40px rgba(58, 39, 18, 0.24);
+  animation: challengeBuildPulse 1.1s ease-in-out infinite;
+}
+
+.ai-challenge-modal.is-building::before {
+  opacity: 1;
+  animation: challengeSweep 1.2s ease-in-out infinite;
+}
+
+.ai-challenge-modal.is-revealed {
+  animation: challengeRevealPop 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.ai-challenge-modal.is-correct.is-revealed {
+  border-color: rgba(52, 131, 81, 0.42);
+  background: linear-gradient(135deg, #ecfff3, #e4f9ea 55%, #daf8e7);
+  box-shadow: 0 24px 44px rgba(20, 103, 57, 0.22);
+}
+
+.ai-challenge-modal.is-wrong.is-revealed {
+  border-color: rgba(180, 66, 58, 0.38);
+  background: linear-gradient(135deg, #fff2ef, #ffe6e0 55%, #ffdacf);
+  box-shadow: 0 24px 44px rgba(144, 39, 31, 0.2);
+}
+
+.challenge-loading-dots {
+  display: inline-flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.challenge-loading-dots span {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #5a4330;
+  opacity: 0.26;
+  animation: challengeDotPulse 0.95s ease-in-out infinite;
+}
+
+.challenge-loading-dots span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.challenge-loading-dots span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
 .phase-loading {
   position: fixed;
   inset: 0;
@@ -389,6 +463,39 @@
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
+.money-rain-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 41;
+}
+
+.money-bill {
+  position: absolute;
+  width: 20px;
+  height: 10px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #9ee27a 0%, #67c256 52%, #4fa53f 100%);
+  border: 1px solid rgba(34, 101, 40, 0.55);
+  box-shadow: 0 2px 5px rgba(30, 94, 38, 0.28);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  animation-name: dollarBillFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.money-bill-symbol {
+  color: #efffe6;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 2px rgba(21, 70, 29, 0.45);
+}
+
 @keyframes rise {
   from {
     opacity: 0;
@@ -410,6 +517,34 @@
   }
   100% {
     transform: translate3d(var(--confetti-drift, 0px), 110vh, 0) rotate(580deg);
+    opacity: 0;
+  }
+}
+
+@keyframes dollarBillFall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(var(--bill-rotation, 0deg)) scale(var(--bill-scale, 1));
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.96;
+  }
+  25% {
+    transform: translate3d(calc(var(--bill-drift, 0px) * 0.35 + var(--bill-sway, 18px)), 20vh, 0)
+      rotate(calc(var(--bill-rotation, 0deg) + 70deg)) scale(var(--bill-scale, 1));
+  }
+  52% {
+    transform: translate3d(calc(var(--bill-drift, 0px) * 0.7 - var(--bill-sway, 18px)), 56vh, 0)
+      rotate(calc(var(--bill-rotation, 0deg) + 150deg)) scale(var(--bill-scale, 1));
+  }
+  80% {
+    transform: translate3d(calc(var(--bill-drift, 0px) + var(--bill-sway, 18px)), 86vh, 0)
+      rotate(calc(var(--bill-rotation, 0deg) + 230deg)) scale(var(--bill-scale, 1));
+    opacity: 0.92;
+  }
+  100% {
+    transform: translate3d(var(--bill-drift, 0px), 112vh, 0)
+      rotate(calc(var(--bill-rotation, 0deg) + 310deg)) scale(var(--bill-scale, 1));
     opacity: 0;
   }
 }
@@ -442,6 +577,48 @@
   50% {
     transform: translateY(-6px);
     opacity: 0.7;
+  }
+}
+
+@keyframes challengeDotPulse {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.28;
+  }
+  50% {
+    transform: translateY(-5px);
+    opacity: 0.85;
+  }
+}
+
+@keyframes challengeBuildPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.012);
+  }
+}
+
+@keyframes challengeSweep {
+  0% {
+    transform: translateX(-85%) rotate(8deg);
+  }
+  100% {
+    transform: translateX(85%) rotate(8deg);
+  }
+}
+
+@keyframes challengeRevealPop {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
 }
 

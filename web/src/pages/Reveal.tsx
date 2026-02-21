@@ -102,7 +102,10 @@ export default function Reveal() {
   const [judgingError, setJudgingError] = useState('')
   const [challengeReveal, setChallengeReveal] = useState<ChallengeReveal | null>(null)
   const [showChallengeModal, setShowChallengeModal] = useState(false)
+  const [challengeModalPhase, setChallengeModalPhase] = useState<'build' | 'result'>('build')
   const lastChallengeAt = useRef<string | null>(null)
+  const challengeBuildTimerRef = useRef<number | null>(null)
+  const challengeCloseTimerRef = useRef<number | null>(null)
   const hasSeededQueue = useRef(false)
   const [walrusSurprisePlayer, setWalrusSurprisePlayer] = useState<string | null>(null)
   const [surpriseByPlayer, setSurpriseByPlayer] = useState<Record<string, string | null>>({})
@@ -116,6 +119,17 @@ export default function Reveal() {
 
   const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
+
+  const clearChallengeModalTimers = () => {
+    if (challengeBuildTimerRef.current) {
+      window.clearTimeout(challengeBuildTimerRef.current)
+      challengeBuildTimerRef.current = null
+    }
+    if (challengeCloseTimerRef.current) {
+      window.clearTimeout(challengeCloseTimerRef.current)
+      challengeCloseTimerRef.current = null
+    }
+  }
 
   const stopNarration = () => {
     narrationTokenRef.current += 1
@@ -253,6 +267,12 @@ export default function Reveal() {
   }, [])
 
   useEffect(() => {
+    return () => {
+      clearChallengeModalTimers()
+    }
+  }, [])
+
+  useEffect(() => {
     let refreshId: number | undefined
 
     const load = async () => {
@@ -318,9 +338,18 @@ export default function Reveal() {
           const current = gameData.room.challengeReveal
           if (current.createdAt !== lastChallengeAt.current) {
             lastChallengeAt.current = current.createdAt
+            clearChallengeModalTimers()
             setChallengeReveal(current)
+            setChallengeModalPhase('build')
             setShowChallengeModal(true)
-            window.setTimeout(() => setShowChallengeModal(false), 3000)
+            challengeBuildTimerRef.current = window.setTimeout(
+              () => setChallengeModalPhase('result'),
+              1400
+            )
+            challengeCloseTimerRef.current = window.setTimeout(
+              () => setShowChallengeModal(false),
+              5000
+            )
           }
         }
       }
@@ -803,13 +832,32 @@ export default function Reveal() {
 
       {showChallengeModal && challengeReveal && (
         <div className="modal-backdrop">
-          <div className="modal">
-            <h3>AI Challenge Result</h3>
-            <p>
-              {challengeReveal.wasCorrect
-                ? `${challengeReveal.accuser} was correct. ${challengeReveal.disqualifiedPlayer} is disqualified and loses $100.`
-                : `${challengeReveal.accuser} was wrong and is disqualified this round.`}
-            </p>
+          <div
+            className={`modal ai-challenge-modal ${
+              challengeReveal.wasCorrect ? 'is-correct' : 'is-wrong'
+            } ${challengeModalPhase === 'build' ? 'is-building' : 'is-revealed'}`}
+          >
+            {challengeModalPhase === 'build' ? (
+              <>
+                <div className="eyebrow">AI Challenge</div>
+                <h3>Verifying Pitch Authenticity</h3>
+                <div className="challenge-loading-dots" aria-hidden="true">
+                  <span />
+                  <span />
+                  <span />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="eyebrow">AI Challenge Verdict</div>
+                <h3>{challengeReveal.wasCorrect ? 'Challenge Upheld' : 'Challenge Rejected'}</h3>
+                <p>
+                  {challengeReveal.wasCorrect
+                    ? `${challengeReveal.accuser} was correct. ${challengeReveal.disqualifiedPlayer} is disqualified and loses $100.`
+                    : `${challengeReveal.accuser} was wrong and is disqualified this round.`}
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
