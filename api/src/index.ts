@@ -133,6 +133,37 @@ const server = Fastify({
   logger: true,
 });
 let io: SocketIOServer | null = null;
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN ?? "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+
+const isOriginAllowed = (origin?: string) => {
+  if (!origin) {
+    return true;
+  }
+  if (ALLOWED_ORIGINS.length === 0) {
+    return true;
+  }
+  return ALLOWED_ORIGINS.includes(origin);
+};
+
+server.addHook("onRequest", (request, reply, done) => {
+  const origin = request.headers.origin;
+  if (typeof origin === "string" && isOriginAllowed(origin)) {
+    reply.header("Access-Control-Allow-Origin", origin);
+    reply.header("Vary", "Origin");
+    reply.header("Access-Control-Allow-Credentials", "true");
+    reply.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    reply.header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
+  }
+
+  if (request.method === "OPTIONS") {
+    reply.code(204).send();
+    return;
+  }
+  done();
+});
 
 const RULES = cardsData.rules;
 const ASK_DECK = cardsData.askDeck;
