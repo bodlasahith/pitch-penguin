@@ -1,6 +1,6 @@
-# Business Walrus
+# Pitch Penguin
 
-Monorepo for the Business Walrus party game prototype.
+Monorepo for the Pitch Penguin party game prototype.
 
 ## Getting started
 

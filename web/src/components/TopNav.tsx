@@ -18,9 +18,11 @@ export default function TopNav() {
   return (
     <header className="top-nav">
       <div className="brand">
-        <div className="brand-mark">BW</div>
+        <div className="brand-mark">
+          <img src="/logo.svg" alt="Pitch Penguin logo" className="brand-logo" />
+        </div>
         <div className="brand-text">
-          <h2>Business Walrus</h2>
+          <h2>Pitch Penguin</h2>
           <span>Pitch night wireframes</span>
         </div>
       </div>

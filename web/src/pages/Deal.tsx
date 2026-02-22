@@ -6,17 +6,17 @@ import LeaderboardModal from '../components/LeaderboardModal'
 import { AnimatedMascot } from '../components/AnimatedMascot'
 import type { MascotEvent } from '../hooks/useAnimationTrigger'
 import { playPhaseSound } from '../utils/soundEffects'
-import walrusSVG from '../assets/walrus.svg'
+import penguinSVG from '../assets/penguin.svg'
 
 type GameResponse = {
   ok: boolean
   room?: {
-    walrus: string
+    penguin: string
     round: number
     phase?: string
     askOptions: string[]
     selectedAsk: string | null
-    walrusAskTimerSeconds: number
+    penguinAskTimerSeconds: number
     askSelectionExpiresAt?: number | null
     serverNow?: number
   }
@@ -30,7 +30,7 @@ export default function Deal() {
   const navigate = useNavigate()
   const [askOptions, setAskOptions] = useState<string[]>([])
   const [selectedAsk, setSelectedAsk] = useState<string | null>(null)
-  const [walrus, setWalrus] = useState('')
+  const [penguin, setPenguin] = useState('')
   const [round, setRound] = useState(0)
   const [mustHaves, setMustHaves] = useState<string[]>([])
   const [surprise, setSurprise] = useState<string | null>(null)
@@ -42,8 +42,8 @@ export default function Deal() {
   const [hoveredPlayer, setHoveredPlayer] = useState<string | null>(null)
   const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
 
-  const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
-  const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
+  const roomCode = code ?? localStorage.getItem('pp:lastRoom') ?? ''
+  const playerName = roomCode ? localStorage.getItem(`pp:player:${roomCode}`) ?? '' : ''
 
   useEffect(() => {
     playPhaseSound('deal')
@@ -60,7 +60,7 @@ export default function Deal() {
       setStatus('error')
       return
     }
-    setWalrus(data.room.walrus)
+    setPenguin(data.room.penguin)
     setRound(data.room.round)
     const offsetMs =
       typeof data.room.serverNow === 'number' ? data.room.serverNow - Date.now() : clockOffsetMs
@@ -146,10 +146,10 @@ export default function Deal() {
     await load()
   }
 
-  const isWalrus = walrus && playerName && walrus.toLowerCase() === playerName.toLowerCase()
+  const isPenguin = penguin && playerName && penguin.toLowerCase() === playerName.toLowerCase()
   const mustHavesRevealed = !!selectedAsk
-  const walrusPlayer = allPlayers.find((player) => player.name === walrus)
-  const walrusMascotImg = getMascotImage(walrusPlayer?.mascot)
+  const penguinPlayer = allPlayers.find((player) => player.name === penguin)
+  const penguinMascotImg = getMascotImage(penguinPlayer?.mascot)
   const mascotBadgeStyle: CSSProperties = {
     width: '28px',
     height: '28px',
@@ -168,47 +168,47 @@ export default function Deal() {
           <div className="eyebrow">Round {round + 1}: The Deal</div>
           <LeaderboardModal roomCode={roomCode} />
           <h1>
-            {isWalrus ? (
+            {isPenguin ? (
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                 <span style={mascotBadgeStyle}>
-                  <img src={walrusSVG} alt="" style={{ width: '20px', height: '20px' }} />
+                  <img src={penguinSVG} alt="" style={{ width: '20px', height: '20px' }} />
                 </span>
-                <span>You are the Walrus</span>
+                <span>You are the Penguin</span>
               </span>
             ) : (
               'Wait Your Turn'
             )}
           </h1>
           <p>
-            {isWalrus ? (
-              'Choose 1 of 3 ASK cards for this round. Other players get 4 MUST HAVEs.'
+            {isPenguin ? (
+              'Choose 1 of 3 PROBLEM cards for this round. Other players get 4 CONSTRAINTS.'
             ) : (
               <span>
-                The Walrus{' '}
+                The Penguin{' '}
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                   <span style={mascotBadgeStyle}>
-                    <img src={walrusSVG} alt="" style={{ width: '18px', height: '18px' }} />
+                    <img src={penguinSVG} alt="" style={{ width: '18px', height: '18px' }} />
                   </span>
-                  {walrusMascotImg && (
+                  {penguinMascotImg && (
                     <span style={mascotBadgeStyle} className="phase-mascot-wrap phase-mascot-wrap--deal">
                       <AnimatedMascot
-                        src={walrusMascotImg}
-                        character={walrusPlayer?.mascot}
+                        src={penguinMascotImg}
+                        character={penguinPlayer?.mascot}
                         width="22px"
                         height="22px"
                         className="phase-mascot"
                       />
                     </span>
                   )}
-                  <span>{walrus}</span>
+                  <span>{penguin}</span>
                 </span>{' '}
-                is selecting the ASK card. Your MUST HAVEs will be revealed next.
+                is selecting the PROBLEM card. Your CONSTRAINTS will be revealed next.
               </span>
             )}
           </p>
         </div>
         <div className="panel">
-          <h3>{isWalrus ? 'Make Your Pick' : 'Reveals In'}</h3>
+          <h3>{isPenguin ? 'Make Your Pick' : 'Reveals In'}</h3>
           <div className="timer">{secondsLeft ?? '--'}s</div>
           {secondsLeft !== null && secondsLeft <= 5 && (
             <p style={{ marginTop: '8px', color: '#d4a574' }}>⏰ Time running out</p>
@@ -218,8 +218,8 @@ export default function Deal() {
 
       <section className="split">
         <div className="panel">
-          <h3>ASK Cards (Pick 1)</h3>
-          {isWalrus ? (
+          <h3>PROBLEM Cards (Pick 1)</h3>
+          {isPenguin ? (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {askOptions.map((ask, index) => (
@@ -261,7 +261,7 @@ export default function Deal() {
                   onClick={handleSelectAsk}
                   disabled={!selectedOption}
                 >
-                  Lock This ASK
+                  Lock This PROBLEM
                 </button>
                 <button className="button secondary" onClick={handleSkipTimer}>
                   Skip Timer
@@ -275,22 +275,22 @@ export default function Deal() {
                   <strong>Today's Challenge</strong>
                   <span>"{selectedAsk}"</span>
                   <p style={{ marginTop: '12px', fontSize: '0.9rem', color: '#666' }}>
-                    Prepare to pitch. MUST HAVEs are now visible.
+                    Prepare to pitch. CONSTRAINTS are now visible.
                   </p>
                 </>
               ) : (
                 <>
-                  <strong>Waiting for ASK...</strong>
-                  <span>The Walrus is reviewing the 3 ASK options.</span>
+                  <strong>Waiting for PROBLEM...</strong>
+                  <span>The Penguin is reviewing the 3 PROBLEM options.</span>
                 </>
               )}
             </div>
           )}
         </div>
 
-        {!isWalrus && (
+        {!isPenguin && (
           <div className="panel">
-            <h3>Your MUST HAVEs</h3>
+            <h3>Your CONSTRAINTS</h3>
             <p style={{ marginTop: '6px', fontSize: '0.9rem', color: '#666' }}>
               Use at least 1 in your pitch answer.
             </p>
@@ -331,7 +331,7 @@ export default function Deal() {
       </section>
 
       <section className="panel">
-        <h3>⭐ Walrus Surprise (Secret)</h3>
+        <h3>⭐ TWIST (Secret)</h3>
         <div
           style={{
             padding: '12px',
@@ -345,12 +345,12 @@ export default function Deal() {
               <strong>You have a Twist!</strong>
               <p style={{ margin: '8px 0', fontSize: '0.95rem' }}>{surprise}</p>
               <p style={{ fontSize: '0.85rem', color: '#666', margin: '8px 0' }}>
-                Use this in your pitch for a $100 bonus if you win!
+                You must use this in your pitch, but you get a $100 bonus if you win!
               </p>
             </>
           ) : (
             <>
-              <strong>Random draw pending</strong>
+              <strong>Random draw pending: </strong>
               <span>One player (not you) gets a secret twist. Might be you on next round!</span>
             </>
           )}
@@ -358,9 +358,9 @@ export default function Deal() {
       </section>
 
       <section className="panel">
-        <h3>Walrus Order</h3>
+        <h3>Penguin Order</h3>
         <p style={{ marginBottom: '12px' }}>
-          After this round, the Walrus role rotates to the next player in line.
+          After this round, the Penguin role rotates to the next player in line.
         </p>
         <ul className="list">
           {allPlayers.map((player) => {
@@ -370,7 +370,7 @@ export default function Deal() {
               <li
                 key={player.name}
                 style={{
-                  fontWeight: player.name === walrus ? 'bold' : 'normal',
+                  fontWeight: player.name === penguin ? 'bold' : 'normal',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
@@ -383,9 +383,9 @@ export default function Deal() {
                 onMouseEnter={() => setHoveredPlayer(player.name)}
                 onMouseLeave={() => setHoveredPlayer(null)}
               >
-                {player.name === walrus && (
+                {player.name === penguin && (
                   <span style={mascotBadgeStyle}>
-                    <img src={walrusSVG} alt="" style={{ width: '20px', height: '20px' }} />
+                    <img src={penguinSVG} alt="" style={{ width: '20px', height: '20px' }} />
                   </span>
                 )}
                 {mascotImg && (

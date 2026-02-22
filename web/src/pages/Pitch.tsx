@@ -17,7 +17,7 @@ import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 type GameResponse = {
   ok: boolean
   room?: {
-    walrus: string
+    penguin: string
     selectedAsk: string | null
     pitchTimerSeconds: number
     robotVoiceEnabled: boolean
@@ -53,7 +53,7 @@ export default function Pitch() {
   const [surprise, setSurprise] = useState<string | null>(null)
   const [robotVoiceEnabled, setRobotVoiceEnabled] = useState(true)
   const [pitchStatuses, setPitchStatuses] = useState<Record<string, string>>({})
-  const [walrus, setWalrus] = useState('')
+  const [penguin, setPenguin] = useState('')
   const [pitchText, setPitchText] = useState('')
   const [pitchTitle, setPitchTitle] = useState('')
   const [selectedMustHaves, setSelectedMustHaves] = useState<string[]>([])
@@ -85,9 +85,9 @@ export default function Pitch() {
   const voicePreviewCacheRef = useRef<Map<string, string>>(new Map())
   const previewTokenRef = useRef(0)
 
-  const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
-  const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
-  const aiLockKey = roomCode && playerName ? `bw:ai-lock:${roomCode}:${playerName}` : ''
+  const roomCode = code ?? localStorage.getItem('pp:lastRoom') ?? ''
+  const playerName = roomCode ? localStorage.getItem(`pp:player:${roomCode}`) ?? '' : ''
+  const aiLockKey = roomCode && playerName ? `pp:ai-lock:${roomCode}:${playerName}` : ''
   const colorOptions = ['#2e2a27', '#d24b4b', '#3e7c3e', '#2d6cdf', '#f5b544', '#7c4bd2']
   const backgroundColor = { r: 255, g: 250, b: 241 }
 
@@ -118,7 +118,7 @@ export default function Pitch() {
       navigate(nextPath, { replace: true })
       return
     }
-    setWalrus(data.room.walrus)
+    setPenguin(data.room.penguin)
     const offsetMs =
       typeof data.room.serverNow === 'number' ? data.room.serverNow - Date.now() : clockOffsetMs
     setClockOffsetMs(offsetMs)
@@ -184,7 +184,7 @@ export default function Pitch() {
     }
     if (status === 'ready') {
       if (!pitchTitle.trim() || !pitchText.trim() || selectedMustHaves.length === 0) {
-        setReadyError('Add a title, a pitch summary, and at least one MUST HAVE before marking ready.')
+        setReadyError('Add a title, a pitch summary, and at least one CONSTRAINT before marking ready.')
         return
       }
     }
@@ -215,8 +215,8 @@ export default function Pitch() {
       return
     }
     if (selectedMustHaves.length === 0) {
-      setAiWarning('⚠️ No MUST HAVEs selected. Using AI will mark you as an AI user—other players can challenge this.')
-      console.log('AI generation warning: no MUST HAVEs selected')
+      setAiWarning('⚠️ No CONSTRAINTS selected. Using AI will mark you as an AI user—other players can challenge this.')
+      console.log('AI generation warning: no CONSTRAINTS selected')
       return
     }
     
@@ -388,7 +388,7 @@ export default function Pitch() {
     synth.speak(utterance)
   }
 
-  const isWalrus = walrus && playerName && walrus.toLowerCase() === playerName.toLowerCase()
+  const isPenguin = penguin && playerName && penguin.toLowerCase() === playerName.toLowerCase()
   const playerStatus = playerName ? pitchStatuses[playerName] : undefined
   const isLocked = playerStatus === 'ready'
   const mascotBadgeStyle: CSSProperties = {
@@ -402,22 +402,22 @@ export default function Pitch() {
     justifyContent: 'center',
   }
   const allReady = Object.entries(pitchStatuses)
-    .filter(([name]) => name !== walrus)
+    .filter(([name]) => name !== penguin)
     .every(([, status]) => status === 'ready')
 
   useEffect(() => {
-    if (isWalrus || isLocked || autoSubmitted) {
+    if (isPenguin || isLocked || autoSubmitted) {
       return
     }
     if (secondsLeft !== null && secondsLeft <= 0) {
       setAutoSubmitted(true)
       void handleStatus('ready')
     }
-  }, [secondsLeft, isWalrus, isLocked, autoSubmitted])
+  }, [secondsLeft, isPenguin, isLocked, autoSubmitted])
 
   useEffect(() => {
     Object.entries(pitchStatuses)
-      .filter(([name]) => name !== walrus)
+      .filter(([name]) => name !== penguin)
       .forEach(([name, status]) => {
         const trigger = mascotAnimationRefs.current[name]
         if (!trigger) return
@@ -430,7 +430,7 @@ export default function Pitch() {
         }
       })
     previousStatusesRef.current = pitchStatuses
-  }, [pitchStatuses, walrus])
+  }, [pitchStatuses, penguin])
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
@@ -560,15 +560,15 @@ export default function Pitch() {
         <div>
           <div className="eyebrow">Pitch Lab</div>
           <LeaderboardModal roomCode={roomCode} inline />
-          <h1>{isWalrus ? 'Monitor Pitches' : 'Write Your Pitch'}</h1>
+          <h1>{isPenguin ? 'Monitor Pitches' : 'Write Your Pitch'}</h1>
           <p>
-            {isWalrus
+            {isPenguin
               ? 'Track player readiness and monitor the round timing.'
               : 'Build your idea and choose a voice personality.'}
           </p>
         </div>
         <div className="panel">
-          <h3>{isWalrus ? 'Reveals In' : 'Time Left'}</h3>
+          <h3>{isPenguin ? 'Reveals In' : 'Time Left'}</h3>
           <div className="timer">
             {secondsLeft !== null
               ? `${Math.floor(secondsLeft / 60)}:${String(secondsLeft % 60).padStart(2, '0')}`
@@ -585,9 +585,9 @@ export default function Pitch() {
 
       <section className="split">
         <div className="panel">
-          <h3>The ASK</h3>
+          <h3>The PROBLEM</h3>
           <div className="card">
-            <strong>"{selectedAsk ?? 'Waiting for ASK...'}"</strong>
+            <strong>"{selectedAsk ?? 'Waiting for PROBLEM...'}"</strong>
             <span>Answer this problem with your pitch.</span>
           </div>
         </div>
@@ -595,7 +595,7 @@ export default function Pitch() {
           <h3>Player Status</h3>
           <ul className="list">
             {Object.entries(pitchStatuses)
-              .filter(([name]) => name !== walrus)
+              .filter(([name]) => name !== penguin)
               .map(([name, status]) => (
                 <li
                   key={name}
@@ -628,7 +628,7 @@ export default function Pitch() {
                 </li>
               ))}
           </ul>
-          {allReady && isWalrus && (
+          {allReady && isPenguin && (
             <p style={{ marginTop: '12px', color: '#2d7c2d' }}>
               ✓ All players ready. Can advance to reveal phase.
             </p>
@@ -636,7 +636,7 @@ export default function Pitch() {
         </div>
       </section>
 
-      {!isWalrus && (
+      {!isPenguin && (
         <section className="split">
           <div className="panel">
             <h3>Your Pitch</h3>
@@ -650,19 +650,19 @@ export default function Pitch() {
             />
             <textarea
               className="input textarea"
-              placeholder="Sell the dream. Highlight the MUST HAVEs and your solution."
+              placeholder="Sell the dream. Highlight the CONSTRAINTS and your solution."
               value={pitchText}
               onChange={(event) => setPitchText(event.target.value)}
               disabled={isLocked}
             />
             {surprise && (
               <div className="card" style={{ marginTop: '12px', backgroundColor: '#d4a574' }}>
-                <strong>⭐ Walrus Surprise</strong>
+                <strong>⭐ TWIST</strong>
                 <span>{surprise}</span>
               </div>
             )}
             <div style={{ marginTop: '14px' }}>
-              <strong>Select MUST HAVEs (use at least 1 of 4)</strong>
+              <strong>Select CONSTRAINTS (use at least 1 of 4)</strong>
               <ul className="list" style={{ marginTop: '8px' }}>
                 {mustHaves.map((card) => (
                   <li key={card}>
@@ -749,11 +749,11 @@ export default function Pitch() {
         </section>
       )}
 
-      {!isWalrus && (
+      {!isPenguin && (
         <section className="panel">
           <h3>Running Out of Time?</h3>
           <p>
-            Use AI to generate a quick pitch that matches the ASK and your MUST HAVEs. 
+            Use AI to generate a quick pitch that matches the PROBLEM and your CONSTRAINTS. 
             <strong> Cost: $50</strong>. Note: Other players can challenge AI-generated pitches. 
             If challenged correctly, you lose $100.
           </p>
@@ -797,7 +797,7 @@ export default function Pitch() {
         </section>
       )}
 
-      {!isWalrus && (
+      {!isPenguin && (
         <section className="panel">
           <h3>Sketch Pad</h3>
           <p style={{ marginTop: '6px', fontSize: '0.9rem', color: '#666' }}>

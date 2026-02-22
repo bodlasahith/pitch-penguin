@@ -86,9 +86,9 @@ export default function Home() {
         setRoomError(data.message ?? 'Could not create a room.')
         return
       }
-      localStorage.setItem(`bw:player:${data.room.code}`, trimmedName)
-      localStorage.setItem('bw:lastRoom', data.room.code)
-      localStorage.setItem('bw:lastName', trimmedName)
+      localStorage.setItem(`pp:player:${data.room.code}`, trimmedName)
+      localStorage.setItem('pp:lastRoom', data.room.code)
+      localStorage.setItem('pp:lastName', trimmedName)
       playActionSound('join_lobby')
       navigate(`/lobby/${data.room.code}`)
     } catch (err) {
@@ -104,9 +104,9 @@ export default function Home() {
           <div className="eyebrow">Kickoff</div>
           <h1>Bring the pitch night online.</h1>
           <p>
-            Business Walrus is a entrepreneurship-themed social pitch party
-            where: <br></br> <strong>ASK</strong> cards present a problem, <br></br> <strong>MUST HAVEs</strong> are quirky requirements, <br></br> and <strong>Walrus Surprises</strong> throw a curveball.
-            <br></br>Walruses may invest in ideas based on creativity, effort,
+            Pitch Penguin is a entrepreneurship-themed social pitch party
+            where: <br></br> <strong>PROBLEM</strong> cards present a problem, <br></br> <strong>CONSTRAINTS</strong> are quirky requirements, <br></br> and <strong>TWISTs</strong> throw a curveball.
+            <br></br>Penguins may invest in ideas based on creativity, effort,
             entertainment, or just pure chaos.
           </p>
         </div>
@@ -210,7 +210,7 @@ export default function Home() {
         <div className="grid">
           <div className="card">
             <strong>1. Deal cards</strong>
-            <span>ASK + MUST HAVEs + Walrus Surprise.</span>
+            <span>PROBLEM + CONSTRAINTS + TWIST.</span>
           </div>
           <div className="card">
             <strong>2. Write pitch</strong>
@@ -218,11 +218,11 @@ export default function Home() {
           </div>
           <div className="card">
             <strong>3. Reveal</strong>
-            <span>Players take turns presenting to the Walrus.</span>
+            <span>Players take turns presenting to the Penguin.</span>
           </div>
           <div className="card">
             <strong>4. Vote</strong>
-            <span>Walrus crowns the winner of the round and invests in them.</span>
+            <span>Penguin crowns the winner of the round and invests in them.</span>
           </div>
         </div>
         <h3 style={{ marginTop: '24px' }}>Final round Case A: Top player pitch-off</h3>
@@ -230,13 +230,13 @@ export default function Home() {
           <div className="card">
             <strong>1. Write pitch</strong>
             <span>
-              Auto assigned ASK + MUST HAVEs. Top 2-7 players pitch head-to-head.
+              Auto assigned PROBLEM + CONSTRAINTS. Top 2-7 players pitch head-to-head.
             </span>
           </div>
           <div className="card">
             <strong>2. Vote</strong>
             <span>
-              Walrus(es) rank the pitches best to worst. Player with the most money wins.
+              Penguin(es) rank the pitches best to worst. Player with the most money wins.
             </span>
           </div>
         </div>
@@ -245,15 +245,15 @@ export default function Home() {
           <div className="card">
             <strong>1. Write pitch</strong>
             <span>
-              Auto assigned ASK + MUST HAVEs. Top player gets immunity bonus and becomes
-              Walrus. Everyone else pitches to compete for ranks 2-7.
+              Auto assigned PROBLEM + CONSTRAINTS. Top player gets immunity bonus and becomes
+              Penguin. Everyone else pitches to compete for ranks 2-7.
             </span>
           </div>
           <div className="card">
             <strong>2. Vote</strong>
             <span>
-              Walrus ranks the pitches best to worst. Players may rise or fall,
-              but the walrus stays safe on top.
+              Penguin ranks the pitches best to worst. Players may rise or fall,
+              but the penguin stays safe on top.
             </span>
           </div>
         </div>

@@ -19,7 +19,7 @@ type Pitch = {
 type GameResponse = {
   ok: boolean
   room?: {
-    walrus: string
+    penguin: string
     phase?: string
     playerScores: Record<string, number>
     gameWinner: string | null
@@ -34,7 +34,7 @@ type GameResponse = {
       pitchTitle: string
       sketchData?: string | null
       pointsAwarded: number
-      walrusSurpriseWinner: boolean
+      penguinSurpriseWinner: boolean
       createdAt: string
     } | null
   }
@@ -47,7 +47,7 @@ type LastWinner = {
   pitchTitle: string
   sketchData?: string | null
   pointsAwarded: number
-  walrusSurpriseWinner: boolean
+  penguinSurpriseWinner: boolean
   createdAt: string
 }
 
@@ -73,8 +73,8 @@ export default function Results() {
   const animationCycleKeyRef = useRef('')
   const endGameSoundKeyRef = useRef('')
 
-  const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
-  const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
+  const roomCode = code ?? localStorage.getItem('pp:lastRoom') ?? ''
+  const playerName = roomCode ? localStorage.getItem(`pp:player:${roomCode}`) ?? '' : ''
 
   useEffect(() => {
     const load = async () => {
@@ -473,8 +473,8 @@ export default function Results() {
           {champion && !lastWinner && !roundNoParticipation && (
             <p style={{ marginTop: '8px' }}>with ${champion[1] * 100}</p>
           )}
-          {lastWinner?.walrusSurpriseWinner && (
-            <p style={{ marginTop: '8px', color: '#d4a574' }}>⭐ Walrus Surprise bonus (+$100)</p>
+          {lastWinner?.penguinSurpriseWinner && (
+            <p style={{ marginTop: '8px', color: '#d4a574' }}>⭐ TWIST bonus (+$100)</p>
           )}
         </div>
 
@@ -692,7 +692,7 @@ export default function Results() {
                     </div>
                     {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                       <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#6b6056' }}>
-                        <strong>MUST HAVEs:</strong> {pitch.usedMustHaves.join(', ')}
+                        <strong>CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
                       </div>
                     )}
                     {pitch.sketchData && (
@@ -737,7 +737,7 @@ export default function Results() {
           </p>
         ) : (
           <p>
-            Prepare for the next round! A new Walrus will be chosen, fresh ASK cards will be
+            Prepare for the next round! A new Penguin will be chosen, fresh PROBLEM cards will be
             dealt, and you'll compete again.
           </p>
         )}

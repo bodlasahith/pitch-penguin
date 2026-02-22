@@ -1,0 +1,24 @@
+<svg viewBox="45 36 110 129" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Crown -->
+  <polygon points="75,55 85,40 100,55 115,40 125,55 125,65 75,65"
+           fill="#FFD23F"/>
+  <circle cx="85" cy="40" r="4" fill="white"/>
+  <circle cx="115" cy="40" r="4" fill="white"/>
+
+  <!-- Head -->
+  <circle cx="100" cy="110" r="55" fill="#1f2430"/>
+
+  <!-- Belly -->
+  <ellipse cx="100" cy="125" rx="30" ry="35" fill="white"/>
+
+  <!-- Eyes -->
+  <circle cx="85" cy="100" r="8" fill="white"/>
+  <circle cx="115" cy="100" r="8" fill="white"/>
+  <circle cx="85" cy="102" r="4" fill="#111"/>
+  <circle cx="115" cy="102" r="4" fill="#111"/>
+
+  <!-- Beak -->
+  <polygon points="100,112 92,122 108,122" fill="#F4A261"/>
+
+</svg>

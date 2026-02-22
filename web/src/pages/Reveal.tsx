@@ -29,9 +29,9 @@ type PitchesResponse = {
 type GameResponse = {
   ok: boolean
   room?: {
-    walrus: string
+    penguin: string
     phase: string
-    walrusSurprisePlayer?: string | null
+    penguinSurprisePlayer?: string | null
     challengeReveal?: ChallengeReveal | null
     viewedPitchIds?: string[]
   }
@@ -92,7 +92,7 @@ export default function Reveal() {
   const [challengeStatus, setChallengeStatus] = useState<
     'idle' | 'sent' | 'error'
   >('idle')
-  const [walrus, setWalrus] = useState('')
+  const [penguin, setPenguin] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
   const [canChallenge, setCanChallenge] = useState(true)
   const [challenged, setChallenged] = useState(false)
@@ -107,7 +107,7 @@ export default function Reveal() {
   const challengeBuildTimerRef = useRef<number | null>(null)
   const challengeCloseTimerRef = useRef<number | null>(null)
   const hasSeededQueue = useRef(false)
-  const [walrusSurprisePlayer, setWalrusSurprisePlayer] = useState<string | null>(null)
+  const [penguinSurprisePlayer, setPenguinSurprisePlayer] = useState<string | null>(null)
   const [surpriseByPlayer, setSurpriseByPlayer] = useState<Record<string, string | null>>({})
   const [viewedPitchIds, setViewedPitchIds] = useState<string[]>([])
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
@@ -117,8 +117,8 @@ export default function Reveal() {
   const activeAudioUrlRef = useRef<string | null>(null)
   const narrationTokenRef = useRef(0)
 
-  const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
-  const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
+  const roomCode = code ?? localStorage.getItem('pp:lastRoom') ?? ''
+  const playerName = roomCode ? localStorage.getItem(`pp:player:${roomCode}`) ?? '' : ''
 
   const clearChallengeModalTimers = () => {
     if (challengeBuildTimerRef.current) {
@@ -309,8 +309,8 @@ export default function Reveal() {
       const gameResponse = await fetch(`/api/room/${roomCode}/game`)
       const gameData = (await gameResponse.json()) as GameResponse
       if (gameData.ok && gameData.room) {
-        setWalrus(gameData.room.walrus)
-        setWalrusSurprisePlayer(gameData.room.walrusSurprisePlayer ?? null)
+        setPenguin(gameData.room.penguin)
+        setPenguinSurprisePlayer(gameData.room.penguinSurprisePlayer ?? null)
         setSurpriseByPlayer(gameData.surpriseByPlayer ?? {})
         setViewedPitchIds(gameData.room.viewedPitchIds ?? [])
         if (gameData.players) {
@@ -410,7 +410,7 @@ export default function Reveal() {
     setCurrentIndex(nextIndex)
     const nextPitch = pitches[nextIndex] ?? null
     setCurrentPitch(nextPitch)
-    if (nextPitch && isWalrus) {
+    if (nextPitch && isPenguin) {
       void markPitchViewed(nextPitch.id)
     }
     setChallengeStatus('idle')
@@ -423,14 +423,14 @@ export default function Reveal() {
     setCurrentIndex(nextIndex)
     const nextPitch = pitches[nextIndex] ?? null
     setCurrentPitch(nextPitch)
-    if (nextPitch && isWalrus) {
+    if (nextPitch && isPenguin) {
       void markPitchViewed(nextPitch.id)
     }
     setChallengeStatus('idle')
     setChallenged(false)
   }
 
-  const isWalrus = walrus && playerName && walrus.toLowerCase() === playerName.toLowerCase()
+  const isPenguin = penguin && playerName && penguin.toLowerCase() === playerName.toLowerCase()
   const isLastPitch = currentIndex === pitches.length - 1
   const selectedWinner = pitches.find((pitch) => pitch.id === selectedWinnerId) ?? null
   const mascotBadgeStyle: CSSProperties = {
@@ -443,10 +443,10 @@ export default function Reveal() {
     alignItems: 'center',
     justifyContent: 'center',
   }
-  const surpriseLabel = walrusSurprisePlayer ? surpriseByPlayer[walrusSurprisePlayer] ?? null : null
-  const isSurpriseWinner = Boolean(selectedWinner && walrusSurprisePlayer && selectedWinner.player === walrusSurprisePlayer)
+  const surpriseLabel = penguinSurprisePlayer ? surpriseByPlayer[penguinSurprisePlayer] ?? null : null
+  const isSurpriseWinner = Boolean(selectedWinner && penguinSurprisePlayer && selectedWinner.player === penguinSurprisePlayer)
   const isOwnPitch = Boolean(currentPitch && playerName && currentPitch.player.toLowerCase() === playerName.toLowerCase())
-  const hasWalrusViewed = Boolean(currentPitch && viewedPitchIds.includes(currentPitch.id))
+  const hasPenguinViewed = Boolean(currentPitch && viewedPitchIds.includes(currentPitch.id))
   const allViewed = pitches.length > 0 && pitches.every((pitch) => viewedPitchIds.includes(pitch.id))
   const currentPlayerPitch = playerName
     ? pitches.find((pitch) => pitch.player.toLowerCase() === playerName.toLowerCase())
@@ -458,7 +458,7 @@ export default function Reveal() {
   const hideChallengePanel = remainingCandidates <= 1
 
   const markPitchViewed = async (pitchId: string) => {
-    if (!roomCode || !playerName || !isWalrus) {
+    if (!roomCode || !playerName || !isPenguin) {
       return
     }
     if (viewedPitchIds.includes(pitchId)) {
@@ -477,9 +477,9 @@ export default function Reveal() {
         <div>
           <div className="eyebrow">Reveal & Judge</div>
           <LeaderboardModal roomCode={roomCode} inline />
-          <h1>{isWalrus ? 'Judge The Pitches' : 'Watch & Challenge'}</h1>
+          <h1>{isPenguin ? 'Judge The Pitches' : 'Watch & Challenge'}</h1>
           <p>
-            {isWalrus
+            {isPenguin
               ? 'Review each pitch and select the winner.'
               : 'If a pitch seems AI-generated, challenge it now.'}
           </p>
@@ -564,7 +564,7 @@ export default function Reveal() {
                 </button>
               )}
             </div>
-            {isWalrus && !isCurrentPitchDisqualified && (
+            {isPenguin && !isCurrentPitchDisqualified && (
               <button
                 className="button"
                 onClick={() => {
@@ -598,7 +598,7 @@ export default function Reveal() {
         </div>
       </section>
 
-      {!isWalrus && !isOwnPitch && !isPlayerDisqualified && canSubmitChallenge && !hideChallengePanel && (
+      {!isPenguin && !isOwnPitch && !isPlayerDisqualified && canSubmitChallenge && !hideChallengePanel && (
         <section className="panel">
           <h3>AI Challenge</h3>
           <p>
@@ -609,14 +609,14 @@ export default function Reveal() {
             <button
               className={`button${!canChallenge ? ' secondary' : ''}`}
               onClick={handleChallenge}
-              disabled={!canChallenge || !currentPitch || isOwnPitch || !hasWalrusViewed}
+              disabled={!canChallenge || !currentPitch || isOwnPitch || !hasPenguinViewed}
             >
               {challenged ? 'Challenge Submitted' : 'Challenge Pitch'}
             </button>
           </div>
-          {!hasWalrusViewed && (
+          {!hasPenguinViewed && (
             <p style={{ marginTop: '10px', color: '#8c2d2a' }}>
-              Waiting for the walrus to review this pitch.
+              Waiting for the penguin to review this pitch.
             </p>
           )}
           {challengeStatus === 'sent' && (
@@ -631,17 +631,17 @@ export default function Reveal() {
       )}
 
       <section className="panel">
-        <h3>Walrus Surprise</h3>
-        {walrusSurprisePlayer && surpriseLabel ? (
+        <h3>TWIST</h3>
+        {penguinSurprisePlayer && surpriseLabel ? (
           <p>
-            ⭐ {walrusSurprisePlayer}: {surpriseLabel}
+            ⭐ {penguinSurprisePlayer}: {surpriseLabel}
           </p>
         ) : (
-          <p>No surprise assigned this round.</p>
+          <p>No TWIST assigned this round.</p>
         )}
       </section>
 
-      {isWalrus && (
+      {isPenguin && (
         <section className="panel">
           <h3>Judging Controls</h3>
           <p>Review all pitches and select your winner.</p>
@@ -687,7 +687,7 @@ export default function Reveal() {
               </div>
               {isSurpriseWinner && (
                 <div style={{ marginTop: '8px', color: '#d4a574' }}>
-                  ⭐ Walrus Surprise bonus (+1)
+                  ⭐ TWIST bonus (+1)
                 </div>
               )}
             </div>
@@ -710,7 +710,7 @@ export default function Reveal() {
                   : pitch.id === selectedWinnerId
                     ? '2px solid rgba(70, 140, 90, 0.6)'
                     : '1px solid rgba(70, 60, 50, 0.12)',
-                cursor: isWalrus ? 'pointer' : 'default',
+                cursor: isPenguin ? 'pointer' : 'default',
                 opacity:
                   isPitchDisqualified(pitch) ? 0.5 : 1,
                 display: 'grid',
@@ -722,10 +722,10 @@ export default function Reveal() {
                 stopNarration()
                 setCurrentIndex(index)
                 setCurrentPitch(pitch)
-                if (isWalrus) {
+                if (isPenguin) {
                   void markPitchViewed(pitch.id)
                 }
-                if (isWalrus && !isPitchDisqualified(pitch)) {
+                if (isPenguin && !isPitchDisqualified(pitch)) {
                   setSelectedWinnerId(pitch.id)
                 }
               }}

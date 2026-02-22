@@ -13,7 +13,7 @@ import {
 import rocketSVG from '../assets/rocket.svg'
 import chartSVG from '../assets/chart.svg'
 import gremlinSVG from '../assets/gremlin.svg'
-import penguinSVG from '../assets/penguin.svg'
+import walrusSVG from '../assets/walrus.svg'
 import goblinSVG from '../assets/goblin.svg'
 import robotSVG from '../assets/robot.svg'
 import unicornSVG from '../assets/unicorn.svg'
@@ -36,7 +36,7 @@ type RoomResponse = {
   }[]
   capacity?: number
   message?: string
-  walrus?: string
+  penguin?: string
 }
 
 type GameResponse = {
@@ -76,7 +76,7 @@ export default function Lobby() {
     { name: 'Rocket CEO', id: 'rocket', svg: rocketSVG },
     { name: 'Chart Wizard', id: 'chart', svg: chartSVG },
     { name: 'Idea Gremlin', id: 'gremlin', svg: gremlinSVG },
-    { name: 'Corporate Penguin', id: 'penguin', svg: penguinSVG },
+    { name: 'Corporate Walrus', id: 'walrus', svg: walrusSVG },
     { name: 'Growth Goblin', id: 'goblin', svg: goblinSVG },
     { name: 'AI Founder Bot', id: 'robot', svg: robotSVG },
     { name: 'Unicorn Founder', id: 'unicorn', svg: unicornSVG },
@@ -107,7 +107,7 @@ export default function Lobby() {
         setRoomStatus('error')
         return
       }
-      const storedName = localStorage.getItem(`bw:player:${code}`) ?? ''
+      const storedName = localStorage.getItem(`pp:player:${code}`) ?? ''
       if (storedName) {
         const exists = data.players.some(
           (player) => player.name.toLowerCase() === storedName.toLowerCase()
@@ -203,7 +203,7 @@ export default function Lobby() {
       setLeaveStatus('error')
       return
     }
-    const playerName = localStorage.getItem(`bw:player:${code}`)
+    const playerName = localStorage.getItem(`pp:player:${code}`)
     if (!playerName) {
       setLeaveStatus('error')
       return
@@ -220,7 +220,7 @@ export default function Lobby() {
         setLeaveStatus('error')
         return
       }
-      localStorage.removeItem(`bw:player:${code}`)
+      localStorage.removeItem(`pp:player:${code}`)
       setLeaveStatus('idle')
       navigate('/')
     } catch (err) {
@@ -268,7 +268,7 @@ export default function Lobby() {
     if (!code) {
       return
     }
-    const playerName = localStorage.getItem(`bw:player:${code}`) ?? ''
+    const playerName = localStorage.getItem(`pp:player:${code}`) ?? ''
     if (!playerName) {
       return
     }
@@ -287,7 +287,7 @@ export default function Lobby() {
     if (!code) {
       return
     }
-    const playerName = localStorage.getItem(`bw:player:${code}`) ?? ''
+    const playerName = localStorage.getItem(`pp:player:${code}`) ?? ''
     const response = await fetch(`/api/room/${code}/advance`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -300,7 +300,7 @@ export default function Lobby() {
     }
   }
 
-  const currentPlayer = localStorage.getItem(`bw:player:${code}`) ?? ''
+  const currentPlayer = localStorage.getItem(`pp:player:${code}`) ?? ''
   const isHost = players?.some(
     (player) =>
       player.isHost &&

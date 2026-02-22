@@ -12,7 +12,7 @@ type GameResponse = {
   ok: boolean
   room?: {
     phase: string
-    walrus: string
+    penguin: string
     selectedAsk: string | null
     pitchTimerSeconds: number
     pitchEndsAt?: number | null
@@ -92,8 +92,8 @@ export default function FinalRound() {
   const [brushSize, setBrushSize] = useState(6)
   const [isEraser, setIsEraser] = useState(false)
 
-  const roomCode = code ?? localStorage.getItem('bw:lastRoom') ?? ''
-  const playerName = roomCode ? localStorage.getItem(`bw:player:${roomCode}`) ?? '' : ''
+  const roomCode = code ?? localStorage.getItem('pp:lastRoom') ?? ''
+  const playerName = roomCode ? localStorage.getItem(`pp:player:${roomCode}`) ?? '' : ''
   const colorOptions = ['#2e2a27', '#d24b4b', '#3e7c3e', '#2d6cdf', '#f5b544', '#7c4bd2']
   const backgroundColor = { r: 255, g: 250, b: 241 }
   const canvasBg = '#fffaf1'
@@ -432,7 +432,7 @@ export default function FinalRound() {
     if (!roomCode || !playerName || isLocked) return
 
     if (selectedMustHaves.length < 2) {
-      setReadyError('⚠️ You must select at least 2 out of 3 MUST HAVEs before submitting.')
+      setReadyError('⚠️ You must select at least 2 out of 3 CONSTRAINTS before submitting.')
       return
     }
 
@@ -759,7 +759,7 @@ export default function FinalRound() {
         <>
           <section className="split">
             <div className="panel">
-              <h3>The ASK</h3>
+              <h3>The PROBLEM</h3>
               <div className="card">
                 <strong>"{selectedAsk ?? 'Loading...'}"</strong>
                 <span>Answer this problem with your pitch.</span>
@@ -815,7 +815,7 @@ export default function FinalRound() {
               />
               <textarea
                 className="input textarea"
-                placeholder="Sell the dream. Highlight at least 2 MUST HAVEs and your solution."
+                placeholder="Sell the dream. Highlight at least 2 CONSTRAINTS and your solution."
                 value={pitchText}
                 onChange={(e) => setPitchText(e.target.value)}
                 disabled={isLocked}
@@ -840,12 +840,12 @@ export default function FinalRound() {
               </div>
               {surprise && (
                 <div className="card" style={{ marginTop: '12px', backgroundColor: '#d4a574' }}>
-                  <strong>⭐ Final Round Surprise</strong>
+                  <strong>⭐ Final Round TWIST</strong>
                   <span>{surprise}</span>
                 </div>
               )}
               <div style={{ marginTop: '14px' }}>
-                <strong>Select MUST HAVEs (choose at least 2 of 3)</strong>
+                <strong>Select CONSTRAINTS (choose at least 2 of 3)</strong>
                 <ul className="list" style={{ marginTop: '8px' }}>
                   {mustHaves.map((card) => (
                     <li key={card}>
@@ -904,7 +904,7 @@ export default function FinalRound() {
               <div className="card">
                 <strong>💡 Final Round</strong>
                 <span>
-                  • Use at least 2 of your 3 MUST HAVEs<br />
+                  • Use at least 2 of your 3 CONSTRAINTS<br />
                   • AI generation is disabled<br />
                   • Empty pitches result in disqualification<br />
                   • Truce ends the game immediately
@@ -1018,7 +1018,7 @@ export default function FinalRound() {
                     )}
                     {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                       <div style={{ marginTop: '8px' }}>
-                        <strong>MUST HAVEs Used:</strong>
+                        <strong>CONSTRAINTS Used:</strong>
                         <ul style={{ margin: '4px 0' }}>
                           {pitch.usedMustHaves.map((mh) => (
                             <li key={mh}>{mh}</li>
@@ -1055,7 +1055,7 @@ export default function FinalRound() {
                     <div style={{ fontSize: '0.9rem', color: '#666' }}>{pitch.summary}</div>
                     {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                       <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#6b6056' }}>
-                        <strong>MUST HAVEs:</strong> {pitch.usedMustHaves.join(', ')}
+                        <strong>CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
                       </div>
                     )}
                     {pitch.sketchData && (
@@ -1173,7 +1173,7 @@ export default function FinalRound() {
                 )}
                 {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                   <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#6b6056' }}>
-                    <strong>MUST HAVEs:</strong> {pitch.usedMustHaves.join(', ')}
+                    <strong>CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
                   </div>
                 )}
                 {pitch.sketchData && (

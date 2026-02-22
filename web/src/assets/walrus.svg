@@ -1,10 +1,10 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   <style>
-    .m-bob { animation: walrusBob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .m-bob { animation: penguinBob 3.4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
     .m-eye { animation: blink 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
     .m-whiskers { animation: whiskerWiggle 2.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
     .m-monocle { animation: monocleSwing 2.4s ease-in-out infinite; transform-box: fill-box; transform-origin: 125px 90px; }
-    @keyframes walrusBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+    @keyframes penguinBob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
     @keyframes blink { 0%,45%,51%,100% { transform: scaleY(1); } 48% { transform: scaleY(0.1); } }
     @keyframes whiskerWiggle { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(2deg); } }
     @keyframes monocleSwing { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(6deg); } }

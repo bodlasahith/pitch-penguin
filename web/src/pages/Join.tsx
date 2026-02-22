@@ -8,8 +8,8 @@ export default function Join() {
   const [name, setName] = useState('')
   const [error, setError] = useState('')
   const [status, setStatus] = useState<'idle' | 'joining' | 'error'>('idle')
-  const lastRoom = localStorage.getItem('bw:lastRoom') ?? ''
-  const lastName = localStorage.getItem('bw:lastName') ?? ''
+  const lastRoom = localStorage.getItem('pp:lastRoom') ?? ''
+  const lastName = localStorage.getItem('pp:lastName') ?? ''
   const [banner, setBanner] = useState('')
 
   const handleJoin = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -42,9 +42,9 @@ export default function Join() {
         }
         return
       }
-      localStorage.setItem(`bw:player:${trimmed}`, playerName)
-      localStorage.setItem('bw:lastRoom', trimmed)
-      localStorage.setItem('bw:lastName', playerName)
+      localStorage.setItem(`pp:player:${trimmed}`, playerName)
+      localStorage.setItem('pp:lastRoom', trimmed)
+      localStorage.setItem('pp:lastName', playerName)
       playActionSound('join_lobby')
       navigate(`/lobby/${trimmed}`)
     } catch (err) {
@@ -70,8 +70,8 @@ export default function Join() {
       if (!data.ok && data.message !== 'Name already taken') {
         // Room not found (expired) or other error - clear stale room from localStorage
         if (data.message === 'Room not found') {
-          localStorage.removeItem('bw:lastRoom')
-          localStorage.removeItem('bw:lastName')
+          localStorage.removeItem('pp:lastRoom')
+          localStorage.removeItem('pp:lastName')
         }
         setStatus('error')
         setError(data.message ?? 'Unable to rejoin that room.')
@@ -80,7 +80,7 @@ export default function Join() {
         }
         return
       }
-      localStorage.setItem(`bw:player:${lastRoom}`, lastName)
+      localStorage.setItem(`pp:player:${lastRoom}`, lastName)
       playActionSound('join_lobby')
       navigate(`/lobby/${lastRoom}`)
     } catch (err) {
@@ -99,7 +99,7 @@ export default function Join() {
         </div>
         <div className="panel">
           <h3>Example</h3>
-          <div className="timer">WLR-482</div>
+          <div className="timer">PPG-482</div>
         </div>
       </section>
 
@@ -145,7 +145,7 @@ export default function Join() {
           <input
             id="room-code"
             className="input"
-            placeholder="WLR-123"
+            placeholder="PPG-123"
             value={code}
             onChange={(event) => setCode(event.target.value)}
             style={{ marginTop: '10px' }}

@@ -1,35 +1,102 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   <style>
-    .m-bob { animation: bob 3.3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-    .m-eye { animation: blink 5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-    .m-tie { animation: tieSway 1.8s ease-in-out infinite; transform-box: fill-box; transform-origin: 100px 150px; }
-    .m-badge { animation: twinkle 1.5s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-    @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-    @keyframes blink { 0%,46%,52%,100% { transform: scaleY(1); } 49% { transform: scaleY(0.1); } }
-    @keyframes tieSway { 0%,100% { transform: rotate(0deg); } 50% { transform: rotate(4deg); } }
-    @keyframes twinkle { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+    .m-bob { animation: bob 3.3s ease-in-out infinite; transform-origin: center; }
+    .m-eye { animation: blink 5s ease-in-out infinite; transform-origin: center; }
+    .m-tie { animation: tieSway 1.8s ease-in-out infinite; transform-origin: 100px 150px; }
+    .m-watch-hand { animation: tick 2s steps(12) infinite; transform-origin: 57px 136px; }
+    .m-crown-glint { animation: crownGlint 3.6s ease-in-out infinite; }
+
+    @keyframes bob {
+      0%,100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    @keyframes blink {
+      0%,46%,52%,100% { transform: scaleY(1); }
+      49% { transform: scaleY(0.1); }
+    }
+
+    @keyframes tieSway {
+      0%,100% { transform: rotate(0deg); }
+      50% { transform: rotate(4deg); }
+    }
+
+    @keyframes tick {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    @keyframes crownGlint {
+      0%, 70%, 100% { opacity: 0; transform: translateX(-3px); }
+      78% { opacity: 0.65; transform: translateX(0); }
+      86% { opacity: 0; transform: translateX(3px); }
+    }
   </style>
+
   <g class="m-bob">
-    <ellipse cx="100" cy="110" rx="50" ry="60" fill="#222"/>
-    <ellipse cx="100" cy="120" rx="30" ry="45" fill="white"/>
+
+    <!-- Body -->
+    <ellipse cx="100" cy="115" rx="52" ry="60" fill="#1f2430"/>
+
+    <!-- Belly -->
+    <ellipse cx="100" cy="125" rx="30" ry="42" fill="#ffffff"/>
+
+    <!-- Head -->
+    <circle cx="100" cy="85" r="35" fill="#1f2430"/>
+
+    <!-- Eyes -->
     <g class="m-eye">
-      <ellipse cx="85" cy="90" rx="7" ry="9" fill="white"/>
-      <ellipse cx="115" cy="90" rx="7" ry="9" fill="white"/>
-      <circle cx="85" cy="92" r="4" fill="#111"/>
-      <circle cx="115" cy="92" r="4" fill="#111"/>
-      <circle cx="87" cy="89" r="1.5" fill="white"/>
-      <circle cx="117" cy="89" r="1.5" fill="white"/>
+      <ellipse cx="85" cy="85" rx="7" ry="9" fill="white"/>
+      <ellipse cx="115" cy="85" rx="7" ry="9" fill="white"/>
+      <circle cx="85" cy="87" r="4" fill="#111"/>
+      <circle cx="115" cy="87" r="4" fill="#111"/>
     </g>
-    <polygon points="100,100 92,110 108,110" fill="#F4A261"/>
-    <polygon points="85,140 100,155 115,140" fill="#111"/>
+
+    <!-- Crown (front layer) -->
+    <g transform="rotate(-4 100 54)">
+      <path d="M74 56 L82 40 L92 50 L100 33 L108 50 L118 40 L126 56 Z"
+            fill="#ffd447" stroke="#b88712" stroke-width="2"/>
+      <rect x="71.5" y="56" width="57" height="11" rx="5.5"
+            fill="#f0b429" stroke="#a7770f" stroke-width="2"/>
+      <path d="M78 60 H122" stroke="#ffe693" stroke-width="2" stroke-linecap="round"/>
+      <ellipse class="m-crown-glint" cx="92" cy="58.5" rx="5.5" ry="1.5" fill="#fff7d6"/>
+      <circle cx="100" cy="61.5" r="3.8" fill="#d64045" stroke="#8f1f27" stroke-width="1.2"/>
+      <circle cx="100" cy="60.2" r="1.3" fill="#ffd5d7"/>
+      <circle cx="82" cy="40" r="3.2" fill="#fff4cc" stroke="#d6b66a" stroke-width="1"/>
+      <circle cx="100" cy="33" r="3.2" fill="#fff4cc" stroke="#d6b66a" stroke-width="1"/>
+      <circle cx="118" cy="40" r="3.2" fill="#fff4cc" stroke="#d6b66a" stroke-width="1"/>
+    </g>
+
+    <!-- Beak -->
+    <polygon points="100,95 92,105 108,105" fill="#F4A261"/>
+
+    <!-- Fins -->
+    <ellipse cx="62" cy="130" rx="13" ry="28"
+             fill="#151a23" transform="rotate(14 62 130)"/>
+    <ellipse cx="138" cy="130" rx="13" ry="28"
+             fill="#151a23" transform="rotate(-14 138 130)"/>
+
+    <!-- Shirt -->
+    <path d="M90 140 L100 130 L110 140 L110 170 L90 170 Z"
+          fill="#f7f7f7"/>
+
+    <!-- Suit Jacket -->
+    <path d="M74 120 L90 140 L110 140 L126 120 L138 170 L62 170 Z"
+          fill="#0f1724"/>
+
+    <!-- Tie -->
     <g class="m-tie">
-      <rect x="80" y="150" width="40" height="10" fill="#FF6B6B"/>
-      <rect x="95" y="150" width="10" height="30" fill="#FF6B6B"/>
-      <circle cx="100" cy="165" r="3" fill="white"/>
+      <polygon points="94,140 106,140 100,150" fill="#c91f37"/>
+      <polygon points="100,150 106,170 94,170" fill="#d7263d"/>
     </g>
-    <g class="m-badge">
-      <rect x="110" y="135" width="10" height="8" rx="2" fill="#FFD166"/>
-      <circle cx="113" cy="139" r="1.5" fill="#EF476F"/>
+
+    <!-- Watch -->
+    <g>
+      <circle cx="57" cy="136" r="8" fill="#ffd979" stroke="#b9851b" stroke-width="2"/>
+      <line x1="57" y1="136" x2="57" y2="130"
+            stroke="#7a5a14" stroke-width="1.5"
+            class="m-watch-hand"/>
     </g>
+
   </g>
 </svg>

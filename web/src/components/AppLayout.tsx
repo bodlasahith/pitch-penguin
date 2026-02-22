@@ -29,7 +29,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     const roomFromPath = location.pathname.startsWith('/lobby/')
       ? location.pathname.split('/')[2] ?? ''
       : ''
-    const storedRoom = localStorage.getItem('bw:lastRoom') ?? ''
+    const storedRoom = localStorage.getItem('pp:lastRoom') ?? ''
     setRoomCode(roomFromPath || storedRoom)
   }, [location.pathname])
 
@@ -39,7 +39,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
 
     const socket = getSocket()
-    const playerName = localStorage.getItem(`bw:player:${roomCode}`) ?? ''
+    const playerName = localStorage.getItem(`pp:player:${roomCode}`) ?? ''
     const handleRoomState = (payload: { code?: string; status?: string; room?: { phase?: string } }) => {
       if (payload.code && payload.code !== roomCode) {
         return
@@ -168,7 +168,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       if (lastReadyPhaseRef.current === roomPhase) {
         return
       }
-      const playerName = localStorage.getItem(`bw:player:${roomCode}`) ?? ''
+      const playerName = localStorage.getItem(`pp:player:${roomCode}`) ?? ''
       if (!playerName) {
         return
       }
@@ -193,11 +193,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const phaseCopy = useMemo(() => {
     switch (roomPhase) {
       case 'deal':
-        return { title: 'Up next: The Deal', subtitle: 'Shuffling ASK cards and surprises.' }
+        return { title: 'Up next: The Deal', subtitle: 'Shuffling PROBLEM cards and TWIST cards.' }
       case 'pitch':
         return { title: 'Up next: Pitch Lab', subtitle: 'Deal locked. Time to build your pitch.' }
       case 'reveal':
-        return { title: 'Up next: Reveal', subtitle: 'Queueing pitches for the walrus.' }
+        return { title: 'Up next: Reveal', subtitle: 'Queueing pitches for the penguin.' }
       case 'results':
         return { title: 'Up next: Results', subtitle: 'Counting $100 bills and the winner.' }
       case 'final-round':
@@ -239,7 +239,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       navigate('/')
       return
     }
-    const playerName = localStorage.getItem(`bw:player:${roomCode}`) ?? ''
+    const playerName = localStorage.getItem(`pp:player:${roomCode}`) ?? ''
     try {
       setLeaving(true)
       if (playerName) {
@@ -250,9 +250,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         })
       }
     } finally {
-      localStorage.removeItem(`bw:player:${roomCode}`)
-      if (localStorage.getItem('bw:lastRoom') === roomCode) {
-        localStorage.removeItem('bw:lastRoom')
+      localStorage.removeItem(`pp:player:${roomCode}`)
+      if (localStorage.getItem('pp:lastRoom') === roomCode) {
+        localStorage.removeItem('pp:lastRoom')
       }
       setLeaving(false)
       setShowLeavePrompt(false)
@@ -267,6 +267,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
       {isTransitioning && !isPublicRoute && roomPhase !== 'lobby' && (
         <div className="phase-loading">
           <div className="phase-card">
+            <img
+              src="/logo-mono.svg"
+              alt=""
+              aria-hidden="true"
+              className="phase-logo-bg"
+              style={{ width: '100px', height: '100px' }}
+            />
             <div className="phase-orb" />
             <div className="phase-spark" />
             <div className="phase-lines">

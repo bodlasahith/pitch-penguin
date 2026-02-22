@@ -37,7 +37,7 @@ type RoundResult = {
   round: number;
   winner: string;
   pitchId: string;
-  walrusSurpriseWinner: boolean;
+  penguinSurpriseWinner: boolean;
   pointsAwarded: number;
   createdAt: string;
 };
@@ -64,7 +64,7 @@ type RoundWinnerSummary = {
   pitchTitle: string;
   sketchData?: string | null;
   pointsAwarded: number;
-  walrusSurpriseWinner: boolean;
+  penguinSurpriseWinner: boolean;
   createdAt: string;
 };
 
@@ -89,11 +89,11 @@ type PlayerPitchStatus = "pending" | "drafting" | "ready";
 
 type RoomGameState = {
   phase: GamePhase;
-  walrus: string;
-  walrusQueue: string[];
-  walrusQueueIndex: number;
+  penguin: string;
+  penguinQueue: string[];
+  penguinQueueIndex: number;
   round: number;
-  walrusAskTimerSeconds: number;
+  penguinAskTimerSeconds: number;
   pitchTimerSeconds: number;
   askDeckQueue: string[];
   mustHaveDeckQueue: string[];
@@ -107,7 +107,7 @@ type RoomGameState = {
   mustHavesByPlayer: Record<string, string[]>;
   surpriseByPlayer: Record<string, string | null>;
   pitchStatusByPlayer: Record<string, PlayerPitchStatus>;
-  walrusSurprisePlayer: string | null;
+  penguinSurprisePlayer: string | null;
   robotVoiceEnabled: boolean;
   challenges: Challenge[];
   challengeReveal: ChallengeReveal | null;
@@ -120,7 +120,7 @@ type RoomGameState = {
   finalRoundPlayers: string[];
   finalRoundRankings: Record<string, string[]>;
   judgeViewedPitches: Record<string, Set<string>>;
-  finalRoundWalrus?: string | null;
+  finalRoundPenguin?: string | null;
   finalRoundTruceByPlayer: Record<string, boolean>;
   truceActivated?: boolean;
   roundNoParticipation: boolean;
@@ -390,9 +390,9 @@ const drawCardsFromQueue = (queue: string[], sourceDeck: string[], count: number
 };
 
 const initializeGameState = (room: Room): RoomGameState => {
-  const walrusQueue = room.players.map((p) => p.name);
-  const walrus = walrusQueue[Math.floor(Math.random() * walrusQueue.length)] ?? "Walrus";
-  const walrusQueueIndex = walrusQueue.indexOf(walrus);
+  const penguinQueue = room.players.map((p) => p.name);
+  const penguin = penguinQueue[Math.floor(Math.random() * penguinQueue.length)] ?? "Penguin";
+  const penguinQueueIndex = penguinQueue.indexOf(penguin);
   const askDeckQueue = shuffle(ASK_DECK);
   const askOptions = drawCardsFromQueue(askDeckQueue, ASK_DECK, 3);
   const pitchStatusByPlayer: Record<string, PlayerPitchStatus> = {};
@@ -404,11 +404,11 @@ const initializeGameState = (room: Room): RoomGameState => {
 
   return {
     phase: room.status,
-    walrus,
-    walrusQueue,
-    walrusQueueIndex,
+    penguin,
+    penguinQueue,
+    penguinQueueIndex,
     round: 0,
-    walrusAskTimerSeconds: 30,
+    penguinAskTimerSeconds: 30,
     pitchTimerSeconds: 120,
     askDeckQueue,
     mustHaveDeckQueue: shuffle(MUST_HAVE_DECK),
@@ -422,7 +422,7 @@ const initializeGameState = (room: Room): RoomGameState => {
     mustHavesByPlayer: {},
     surpriseByPlayer: {},
     pitchStatusByPlayer,
-    walrusSurprisePlayer: null,
+    penguinSurprisePlayer: null,
     robotVoiceEnabled: true,
     challenges: [],
     challengeReveal: null,
@@ -435,7 +435,7 @@ const initializeGameState = (room: Room): RoomGameState => {
     finalRoundPlayers: [],
     finalRoundRankings: {},
     judgeViewedPitches: {},
-    finalRoundWalrus: null,
+    finalRoundPenguin: null,
     finalRoundTruceByPlayer: {},
     roundNoParticipation: false,
     playersReady: new Set(),
@@ -477,7 +477,7 @@ const isEmptyPitchSubmission = (pitch?: Pitch | null) => {
 };
 
 const areAllPitchersEmpty = (room: Room, gameState: RoomGameState, pitches: Pitch[]) => {
-  const pitchers = room.players.filter((player) => player.name !== gameState.walrus);
+  const pitchers = room.players.filter((player) => player.name !== gameState.penguin);
   if (pitchers.length === 0) {
     return false;
   }
@@ -569,22 +569,22 @@ const buildRoomSnapshot = (room: Room) => {
     status: room.status,
     players: room.players,
     capacity: ROOM_CAPACITY,
-    walrus: gameState.walrus,
+    penguin: gameState.penguin,
     room: {
       code: room.code,
       serverNow: Date.now(),
       phase: room.status,
-      walrus: gameState.walrus,
+      penguin: gameState.penguin,
       round: gameState.round,
       playerScores: gameState.playerScores,
       askOptions: gameState.askOptions,
       selectedAsk: gameState.selectedAsk,
-      walrusAskTimerSeconds: gameState.walrusAskTimerSeconds,
+      penguinAskTimerSeconds: gameState.penguinAskTimerSeconds,
       pitchTimerSeconds: gameState.pitchTimerSeconds,
       robotVoiceEnabled: gameState.robotVoiceEnabled,
       askSelectionExpiresAt: gameState.askSelectionExpiresAt,
       pitchEndsAt: gameState.pitchEndsAt,
-      walrusSurprisePlayer: gameState.walrusSurprisePlayer,
+      penguinSurprisePlayer: gameState.penguinSurprisePlayer,
       gameWinner: gameState.gameWinner,
       gameWinners: gameState.gameWinners,
       finalRoundPlayers: gameState.finalRoundPlayers,
@@ -620,7 +620,7 @@ const emitRoomSnapshot = (code: string) => {
 
 const createJoinCode = () => {
   const number = Math.floor(100 + Math.random() * 900);
-  return `WLR-${number}`;
+  return `PPG-${number}`;
 };
 
 const createRoom = (hostName?: string) => {
@@ -651,11 +651,11 @@ const createRoom = (hostName?: string) => {
 };
 
 const gameState = {
-  roomCode: "WLR-482",
+  roomCode: "PPG-482",
   phase: "reveal",
   round: 2,
-  walrus: "Riley",
-  walrusSurprisePlayer: "Jordan",
+  penguin: "Riley",
+  penguinSurprisePlayer: "Jordan",
   ask: "Urban commuters are exhausted. Pitch a product that makes their mornings easier.",
   mustHaves: [
     "Must include a wearable component.",
@@ -730,12 +730,12 @@ const dealMustHaves = (room: Room, gameState: RoomGameState) => {
   const byPlayer: Record<string, string[]> = {};
   const surpriseByPlayer: Record<string, string | null> = {};
   room.players.forEach((player) => {
-    if (player.name === gameState.walrus) {
+    if (player.name === gameState.penguin) {
       return;
     }
     byPlayer[player.name] = drawCardsFromQueue(gameState.mustHaveDeckQueue, MUST_HAVE_DECK, 4);
   });
-  const eligible = room.players.filter((player) => player.name !== gameState.walrus);
+  const eligible = room.players.filter((player) => player.name !== gameState.penguin);
   const surprisePlayer = eligible.length
     ? eligible[Math.floor(Math.random() * eligible.length)].name
     : null;
@@ -745,11 +745,11 @@ const dealMustHaves = (room: Room, gameState: RoomGameState) => {
   });
   gameState.mustHavesByPlayer = byPlayer;
   gameState.surpriseByPlayer = surpriseByPlayer;
-  gameState.walrusSurprisePlayer = surprisePlayer;
+  gameState.penguinSurprisePlayer = surprisePlayer;
 };
 
 const dealFinalRoundCards = (room: Room, gameState: RoomGameState) => {
-  // For final round: each player gets exactly 3 must-haves and 1 walrus surprise.
+  // For final round: each player gets exactly 3 must-haves and 1 twist.
   const byPlayer: Record<string, string[]> = {};
   const surpriseByPlayer: Record<string, string | null> = {};
 
@@ -758,7 +758,7 @@ const dealFinalRoundCards = (room: Room, gameState: RoomGameState) => {
     byPlayer[playerName] = drawCardsFromQueue(gameState.mustHaveDeckQueue, MUST_HAVE_DECK, 3);
   });
 
-  // Give each final round player a walrus surprise.
+  // Give each final round player a twist.
   gameState.finalRoundPlayers.forEach((playerName) => {
     surpriseByPlayer[playerName] =
       drawCardsFromQueue(gameState.surpriseDeckQueue, SURPRISE_DECK, 1)[0] ?? null;
@@ -766,13 +766,13 @@ const dealFinalRoundCards = (room: Room, gameState: RoomGameState) => {
 
   gameState.mustHavesByPlayer = byPlayer;
   gameState.surpriseByPlayer = surpriseByPlayer;
-  // In final round, all pitchers are "walrus surprise" players for bonus purposes
-  gameState.walrusSurprisePlayer = null; // Not used in final round
+  // In final round, all pitchers are "twist" players for bonus purposes
+  gameState.penguinSurprisePlayer = null; // Not used in final round
 };
 
-const rotateWalrus = (gameState: RoomGameState) => {
-  gameState.walrusQueueIndex = (gameState.walrusQueueIndex + 1) % gameState.walrusQueue.length;
-  gameState.walrus = gameState.walrusQueue[gameState.walrusQueueIndex];
+const rotatePenguin = (gameState: RoomGameState) => {
+  gameState.penguinQueueIndex = (gameState.penguinQueueIndex + 1) % gameState.penguinQueue.length;
+  gameState.penguin = gameState.penguinQueue[gameState.penguinQueueIndex];
 };
 
 const checkGameEnd = (gameState: RoomGameState): boolean => {
@@ -834,13 +834,13 @@ const startDealTimer = (room: Room, gameState: RoomGameState) => {
   if (gameState.askSelectionTimeoutId) {
     clearTimeout(gameState.askSelectionTimeoutId);
   }
-  gameState.askSelectionExpiresAt = Date.now() + gameState.walrusAskTimerSeconds * 1000;
+  gameState.askSelectionExpiresAt = Date.now() + gameState.penguinAskTimerSeconds * 1000;
   gameState.askSelectionTimeoutId = setTimeout(() => {
     if (!gameState.selectedAsk) {
       gameState.selectedAsk = gameState.askOptions[0] ?? null;
     }
     startPitchPhase(room, gameState);
-  }, gameState.walrusAskTimerSeconds * 1000);
+  }, gameState.penguinAskTimerSeconds * 1000);
   gameState.timerStarted = true;
 };
 
@@ -909,7 +909,7 @@ const finalizePitchPhase = (room: Room, gameState: RoomGameState) => {
   const list = roomPitches.get(room.code) ?? [];
 
   room.players.forEach((player) => {
-    if (player.name === gameState.walrus) {
+    if (player.name === gameState.penguin) {
       return;
     }
     const status = gameState.pitchStatusByPlayer[player.name];
@@ -970,7 +970,7 @@ const startPitchPhase = (room: Room, gameState: RoomGameState) => {
   }
   gameState.pitchEndsAt = null;
   room.players.forEach((player) => {
-    if (player.name !== gameState.walrus) {
+    if (player.name !== gameState.penguin) {
       gameState.pitchStatusByPlayer[player.name] = "drafting";
     }
   });
@@ -993,7 +993,7 @@ const startFinalRound = (room: Room, gameState: RoomGameState) => {
   gameState.judgeViewedPitches = {};
 
   // Clear previous round data
-  // Pick ONE ask from the non-repeating queue (no walrus selection in final round).
+  // Pick ONE ask from the non-repeating queue (no penguin selection in final round).
   const randomAsk = drawCardsFromQueue(gameState.askDeckQueue, ASK_DECK, 1)[0] ?? "Create something amazing!";
   gameState.askOptions = [randomAsk]; // Only one option
   gameState.selectedAsk = randomAsk; // Auto-selected
@@ -1015,7 +1015,7 @@ const startFinalRound = (room: Room, gameState: RoomGameState) => {
     }
   });
 
-  // Deal cards to final round players (3 must-haves + 1 walrus surprise each)
+  // Deal cards to final round players (3 must-haves + 1 twist each)
   dealFinalRoundCards(room, gameState);
 
   // Start pitch timer
@@ -1027,11 +1027,11 @@ const startFinalRound = (room: Room, gameState: RoomGameState) => {
 };
 
 const startDealPhase = (room: Room, gameState: RoomGameState) => {
-  // Randomize walrus on first round
+  // Randomize penguin on first round
   if (gameState.round === 0) {
-    const randomIndex = Math.floor(Math.random() * gameState.walrusQueue.length);
-    gameState.walrusQueueIndex = randomIndex;
-    gameState.walrus = gameState.walrusQueue[randomIndex];
+    const randomIndex = Math.floor(Math.random() * gameState.penguinQueue.length);
+    gameState.penguinQueueIndex = randomIndex;
+    gameState.penguin = gameState.penguinQueue[randomIndex];
   }
 
   room.status = "deal";
@@ -1082,8 +1082,8 @@ const applyRoundResult = (pitchId: string, voter: string) => {
   }
 
   const winner = pitch.player;
-  const walrusSurpriseWinner = winner === gameState.walrusSurprisePlayer;
-  const pointsAwarded = (walrusSurpriseWinner ? 2 : 1) + getMustHaveBonus(pitch.usedMustHaves);
+  const penguinSurpriseWinner = winner === gameState.penguinSurprisePlayer;
+  const pointsAwarded = (penguinSurpriseWinner ? 2 : 1) + getMustHaveBonus(pitch.usedMustHaves);
   const winnerPlayer = findPlayer(winner);
   if (winnerPlayer) {
     winnerPlayer.points += pointsAwarded;
@@ -1093,7 +1093,7 @@ const applyRoundResult = (pitchId: string, voter: string) => {
     round: gameState.round,
     winner,
     pitchId,
-    walrusSurpriseWinner,
+    penguinSurpriseWinner,
     pointsAwarded,
     createdAt: new Date().toISOString(),
   };
@@ -1116,7 +1116,7 @@ const applyRoundResult = (pitchId: string, voter: string) => {
 server.get("/api/health", async () => {
   return {
     ok: true,
-    service: "business-walrus-api",
+    service: "pitch-penguin-api",
     time: new Date().toISOString(),
   };
 });
@@ -1138,7 +1138,7 @@ server.get("/api/room/:code", async (request) => {
     status: snapshot.status,
     players: snapshot.players,
     capacity: snapshot.capacity,
-    walrus: snapshot.walrus,
+    penguin: snapshot.penguin,
   };
 });
 
@@ -1173,6 +1173,13 @@ server.post("/api/rooms/join", async (request) => {
     return {
       ok: false,
       message: "Room not found",
+    };
+  }
+
+  if (room.status !== "lobby") {
+    return {
+      ok: false,
+      message: "Game already started",
     };
   }
 
@@ -1213,13 +1220,13 @@ server.post("/api/rooms/join", async (request) => {
   gameState.pitchStatusByPlayer[playerName] = "pending";
   gameState.playerScores[playerName] = 0;
 
-  // If this is first player, set them as initial walrus (will be randomized on game start)
+  // If this is first player, set them as initial penguin (will be randomized on game start)
   if (isHost) {
-    gameState.walrus = playerName;
-    gameState.walrusQueue = room.players.map((p) => p.name);
+    gameState.penguin = playerName;
+    gameState.penguinQueue = room.players.map((p) => p.name);
   } else {
-    // Update walrus queue for subsequent players
-    gameState.walrusQueue = room.players.map((p) => p.name);
+    // Update penguin queue for subsequent players
+    gameState.penguinQueue = room.players.map((p) => p.name);
   }
 
   emitRoomSnapshot(code);
@@ -1274,7 +1281,7 @@ server.post("/api/rooms/leave", async (request) => {
   if (wasHost) {
     const nextHost = room.players.find((player) => player.isHost)?.name;
     if (nextHost) {
-      gameState.walrus = nextHost;
+      gameState.penguin = nextHost;
     }
   }
 
@@ -1669,7 +1676,7 @@ server.post("/api/room/:code/pitch", async (request) => {
 
   if (room.status === "pitch") {
     const allReady = room.players
-      .filter((player) => player.name !== gameState.walrus)
+      .filter((player) => player.name !== gameState.penguin)
       .every((player) => gameState.pitchStatusByPlayer[player.name] === "ready");
     if (allReady) {
       if (areAllPitchersEmpty(room, gameState, list)) {
@@ -1715,7 +1722,7 @@ server.post("/api/room/:code/generate-pitch", async (request) => {
   if (!ask || !mustHaves || mustHaves.length === 0) {
     return {
       ok: false,
-      message: "Ask and at least one MUST HAVE required",
+      message: "PROBLEM and at least one CONSTRAINT required",
     };
   }
 
@@ -1891,11 +1898,11 @@ server.post("/api/room/:code/pitch-viewed", async (request) => {
     };
   }
 
-  // Normal round: only walrus can mark pitches viewed
-  if (body.viewer && body.viewer.toLowerCase() !== gameState.walrus.toLowerCase()) {
+  // Normal round: only penguin can mark pitches viewed
+  if (body.viewer && body.viewer.toLowerCase() !== gameState.penguin.toLowerCase()) {
     return {
       ok: false,
-      message: "Only the walrus can mark pitches viewed",
+      message: "Only the penguin can mark pitches viewed",
     };
   }
   gameState.viewedPitchIds.add(pitchId);
@@ -1960,7 +1967,7 @@ server.post("/api/room/:code/judge", async (request) => {
 
   // If winner wasn't disqualified, award points
   if (!gameState.disqualifiedPlayers.has(winningPitch.player)) {
-    const isSurpriseWinner = winningPitch.player === gameState.walrusSurprisePlayer;
+    const isSurpriseWinner = winningPitch.player === gameState.penguinSurprisePlayer;
     const pointsAward = (isSurpriseWinner ? 2 : 1) + getMustHaveBonus(winningPitch.usedMustHaves);
     gameState.playerScores[winningPitch.player] =
       (gameState.playerScores[winningPitch.player] ?? 0) + pointsAward;
@@ -1970,7 +1977,7 @@ server.post("/api/room/:code/judge", async (request) => {
       pitchTitle: winningPitch.title,
       sketchData: winningPitch.sketchData ?? null,
       pointsAwarded: pointsAward,
-      walrusSurpriseWinner: isSurpriseWinner,
+      penguinSurpriseWinner: isSurpriseWinner,
       createdAt: new Date().toISOString(),
     };
   }
@@ -2100,10 +2107,10 @@ server.post("/api/room/:code/advance-round", async (request) => {
 
   // Advance to next round
   gameState.round += 1;
-  gameState.walrusQueue = room.players.map((player) => player.name);
-  const currentIndex = gameState.walrusQueue.indexOf(gameState.walrus);
-  gameState.walrusQueueIndex = currentIndex >= 0 ? currentIndex : 0;
-  rotateWalrus(gameState);
+  gameState.penguinQueue = room.players.map((player) => player.name);
+  const currentIndex = gameState.penguinQueue.indexOf(gameState.penguin);
+  gameState.penguinQueueIndex = currentIndex >= 0 ? currentIndex : 0;
+  rotatePenguin(gameState);
   gameState.challenges = [];
   gameState.challengeReveal = null;
   gameState.viewedPitchIds.clear();
@@ -2123,7 +2130,7 @@ server.post("/api/room/:code/advance-round", async (request) => {
   return {
     ok: true,
     round: gameState.round,
-    walrus: gameState.walrus,
+    penguin: gameState.penguin,
   };
 });
 
@@ -2290,7 +2297,7 @@ server.post("/api/room/:code/restart", async (request) => {
     room: {
       code: room.code,
       status: room.status,
-      walrus: newGameState.walrus,
+      penguin: newGameState.penguin,
     },
   };
 });
@@ -2306,7 +2313,7 @@ server.get("/api/round", async () => {
   return {
     ok: true,
     round: gameState.round,
-    walrus: gameState.walrus,
+    penguin: gameState.penguin,
     ask: gameState.ask,
     mustHaves: gameState.mustHaves,
     pitchTimerSeconds: gameState.pitchTimerSeconds,
@@ -2326,8 +2333,8 @@ server.get("/api/state", async () => {
     room: {
       code: gameState.roomCode,
       phase: gameState.phase,
-      walrus: gameState.walrus,
-      walrusSurprisePlayer: gameState.walrusSurprisePlayer,
+      penguin: gameState.penguin,
+      penguinSurprisePlayer: gameState.penguinSurprisePlayer,
     },
     scores: gameState.players,
     lastResult: gameState.lastResult,
@@ -2394,7 +2401,7 @@ server.post("/api/round/challenge", async (request) => {
 server.post("/api/round/vote", async (request) => {
   const body = request.body as { pitchId?: string; voter?: string };
   const pitchId = body.pitchId ?? "";
-  const voter = body.voter ?? gameState.walrus;
+  const voter = body.voter ?? gameState.penguin;
   if (!pitchId) {
     return {
       ok: false,

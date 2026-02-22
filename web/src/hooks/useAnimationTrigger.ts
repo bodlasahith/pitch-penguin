@@ -23,7 +23,7 @@ export type MascotEvent =
   | "idle";
 
 interface MascotAnimationConfig {
-  character?: string; // 'blob' | 'chart' | 'gremlin' | 'penguin' | etc
+  character?: string; // 'blob' | 'chart' | 'gremlin' | 'walrus' | etc
   onAnimationEnd?: () => void;
 }
 
@@ -62,10 +62,6 @@ const WIN_ANIMATIONS: Record<string, AnimationDefinition> = {
   gremlin: { primary: "mascot-winner", secondary: ["gremlin-winning", "gremlin-bulb"] },
   hamster: { primary: "mascot-winner", secondary: ["hamster-winning", "hamster-coin"] },
   llama: { primary: "mascot-winner" },
-  penguin: {
-    primary: "mascot-winner",
-    secondary: ["penguin-winning", "penguin-tie", "penguin-badge"],
-  },
   shark: { primary: "mascot-winner", secondary: ["shark-winning"] },
   unicorn: { primary: "mascot-winner", secondary: ["unicorn-winning", "unicorn-horn"] },
   walrus: {
@@ -80,7 +76,6 @@ const SELECT_ANIMATIONS: Record<string, AnimationDefinition> = {
   blob: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "blob-select"] },
   chart: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "chart-select"] },
   gremlin: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "gremlin-select"] },
-  penguin: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "penguin-select"] },
   goblin: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "goblin-select"] },
   robot: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "robot-select"] },
   unicorn: { primary: "mascot-selected", secondary: ["mascot-selected-glow", "unicorn-select"] },
@@ -98,7 +93,6 @@ const PITCH_ANIMATIONS: Record<string, AnimationDefinition> = {
   blob: { primary: "mascot-idle", secondary: ["blob-presenting"] },
   chart: { primary: "mascot-idle", secondary: ["chart-presenting"] },
   gremlin: { primary: "mascot-idle", secondary: ["gremlin-presenting"] },
-  penguin: { primary: "mascot-idle", secondary: ["penguin-presenting"] },
   goblin: { primary: "mascot-idle", secondary: ["goblin-presenting"] },
   robot: { primary: "mascot-idle", secondary: ["robot-presenting"] },
   unicorn: { primary: "mascot-idle", secondary: ["unicorn-presenting"] },
@@ -116,7 +110,6 @@ const LOSE_ANIMATIONS: Record<string, AnimationDefinition> = {
   blob: { primary: "mascot-lose-money", secondary: ["blob-losing"] },
   chart: { primary: "mascot-lose-money", secondary: ["chart-losing"] },
   gremlin: { primary: "mascot-lose-money", secondary: ["gremlin-losing"] },
-  penguin: { primary: "mascot-lose-money", secondary: ["penguin-losing"] },
   goblin: { primary: "mascot-lose-money", secondary: ["goblin-losing"] },
   robot: { primary: "mascot-lose-money", secondary: ["robot-losing"] },
   unicorn: { primary: "mascot-lose-money", secondary: ["unicorn-losing"] },

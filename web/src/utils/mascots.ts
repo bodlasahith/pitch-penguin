@@ -1,7 +1,7 @@
 import rocketSVG from "../assets/rocket.svg";
 import chartSVG from "../assets/chart.svg";
 import gremlinSVG from "../assets/gremlin.svg";
-import penguinSVG from "../assets/penguin.svg";
+import walrusSVG from "../assets/walrus.svg";
 import goblinSVG from "../assets/goblin.svg";
 import robotSVG from "../assets/robot.svg";
 import unicornSVG from "../assets/unicorn.svg";
@@ -17,7 +17,7 @@ export const MASCOT_MAP: Record<string, { name: string; svg: string }> = {
   rocket: { name: "Rocket CEO", svg: rocketSVG },
   chart: { name: "Chart Wizard", svg: chartSVG },
   gremlin: { name: "Idea Gremlin", svg: gremlinSVG },
-  penguin: { name: "Corporate Penguin", svg: penguinSVG },
+  walrus: { name: "Corporate Walrus", svg: walrusSVG },
   goblin: { name: "Growth Goblin", svg: goblinSVG },
   robot: { name: "AI Founder Bot", svg: robotSVG },
   unicorn: { name: "Unicorn Founder", svg: unicornSVG },
@@ -44,7 +44,7 @@ const MASCOT_COLORS: Record<string, string> = {
   rocket: "#FFE5D4",
   chart: "#eddff4",
   gremlin: "#E0FBF2",
-  penguin: "#ffffff",
+  walrus: "#eae2ff",
   goblin: "#F7DFF2",
   robot: "#E3F1F7",
   unicorn: "#F4E2FF",
@@ -54,7 +54,7 @@ const MASCOT_COLORS: Record<string, string> = {
   hamster: "#FFF1D6",
   blob: "#e2e1fa",
   raccoon: "#dbdbdb",
-  scientist: "#F5F1EA"
+  scientist: "#F5F1EA",
 };
 
 export function getMascotColor(mascotId: string | undefined): string {
