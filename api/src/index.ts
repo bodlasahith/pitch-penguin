@@ -89,6 +89,7 @@ type PlayerPitchStatus = "pending" | "drafting" | "ready";
 
 type RoomGameState = {
   phase: GamePhase;
+  lockedPlayers: string[] | null;
   penguin: string;
   penguinQueue: string[];
   penguinQueueIndex: number;
@@ -404,6 +405,7 @@ const initializeGameState = (room: Room): RoomGameState => {
 
   return {
     phase: room.status,
+    lockedPlayers: null,
     penguin,
     penguinQueue,
     penguinQueueIndex,
@@ -1027,6 +1029,10 @@ const startFinalRound = (room: Room, gameState: RoomGameState) => {
 };
 
 const startDealPhase = (room: Room, gameState: RoomGameState) => {
+  if (!gameState.lockedPlayers || gameState.lockedPlayers.length === 0) {
+    gameState.lockedPlayers = room.players.map((player) => player.name);
+  }
+
   // Randomize penguin on first round
   if (gameState.round === 0) {
     const randomIndex = Math.floor(Math.random() * gameState.penguinQueue.length);
@@ -1175,11 +1181,82 @@ server.post("/api/rooms/join", async (request) => {
       message: "Room not found",
     };
   }
-
-  if (room.status !== "lobby") {
+  const gameState = getRoomGameState(room);
+  const normalized = normalizeName(playerName);
+  const existingPlayer = room.players.find((player) => normalizeName(player.name) === normalized);
+  if (existingPlayer) {
     return {
       ok: false,
-      message: "Game already started",
+      message: "Name already taken",
+    };
+  }
+
+  const availableMascots = getAvailableMascots(room);
+  if (availableMascots.length === 0) {
+    return {
+      ok: false,
+      message: "No mascots available",
+    };
+  }
+
+  if (room.status !== "lobby") {
+    const historicalNames =
+      gameState.lockedPlayers && gameState.lockedPlayers.length > 0
+        ? gameState.lockedPlayers
+        : Array.from(new Set([...Object.keys(gameState.playerScores), ...gameState.penguinQueue]));
+    const returningPlayerName =
+      historicalNames.find((name) => normalizeName(name) === normalized) ?? null;
+    if (!returningPlayerName) {
+      return {
+        ok: false,
+        message: "Game already started",
+      };
+    }
+
+    const mascot = availableMascots[Math.floor(Math.random() * availableMascots.length)];
+    room.players.push({
+      name: returningPlayerName,
+      isHost: false,
+      mascot,
+      joinedAt: new Date().toISOString(),
+    });
+    room.lastActiveAt = Date.now();
+
+    if (!(returningPlayerName in gameState.pitchStatusByPlayer)) {
+      if (room.status === "pitch") {
+        gameState.pitchStatusByPlayer[returningPlayerName] =
+          returningPlayerName === gameState.penguin ? "pending" : "drafting";
+      } else if (room.status === "deal") {
+        gameState.pitchStatusByPlayer[returningPlayerName] = "pending";
+      } else if (room.status === "final-round") {
+        gameState.pitchStatusByPlayer[returningPlayerName] = gameState.finalRoundPlayers.includes(
+          returningPlayerName,
+        )
+          ? "drafting"
+          : "ready";
+      } else {
+        gameState.pitchStatusByPlayer[returningPlayerName] = "ready";
+      }
+    }
+
+    if (!(returningPlayerName in gameState.playerScores)) {
+      gameState.playerScores[returningPlayerName] = 0;
+    }
+    if (!gameState.penguinQueue.some((name) => normalizeName(name) === normalized)) {
+      gameState.penguinQueue.push(returningPlayerName);
+    }
+    if (
+      room.status === "final-round" &&
+      !gameState.finalRoundPlayers.includes(returningPlayerName) &&
+      !gameState.judgeViewedPitches[returningPlayerName]
+    ) {
+      gameState.judgeViewedPitches[returningPlayerName] = new Set();
+    }
+
+    emitRoomSnapshot(code);
+    return {
+      ok: true,
+      room,
     };
   }
 
@@ -1190,23 +1267,7 @@ server.post("/api/rooms/join", async (request) => {
     };
   }
 
-  const normalized = normalizeName(playerName);
-  const existingPlayer = room.players.find((player) => normalizeName(player.name) === normalized);
-  if (existingPlayer) {
-    return {
-      ok: false,
-      message: "Name already taken",
-    };
-  }
-
   const isHost = room.players.length === 0;
-  const availableMascots = getAvailableMascots(room);
-  if (availableMascots.length === 0) {
-    return {
-      ok: false,
-      message: "No mascots available",
-    };
-  }
   const mascot = availableMascots[Math.floor(Math.random() * availableMascots.length)];
   room.players.push({
     name: playerName,
@@ -1216,7 +1277,6 @@ server.post("/api/rooms/join", async (request) => {
   });
   room.lastActiveAt = Date.now();
 
-  const gameState = getRoomGameState(room);
   gameState.pitchStatusByPlayer[playerName] = "pending";
   gameState.playerScores[playerName] = 0;
 
@@ -2455,7 +2515,8 @@ const setupSocketServer = () => {
 const start = async () => {
   try {
     setupSocketServer();
-    await server.listen({ port: 3001, host: "0.0.0.0" });
+    const port = Number(process.env.PORT ?? "3001");
+    await server.listen({ port, host: "0.0.0.0" });
   } catch (err) {
     server.log.error(err);
     process.exit(1);
