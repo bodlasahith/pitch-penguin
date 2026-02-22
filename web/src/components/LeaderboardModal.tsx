@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { apiFetch } from '../utils/api'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 
 type LeaderboardModalProps = {
@@ -24,7 +25,7 @@ export default function LeaderboardModal({ roomCode, inline = false }: Leaderboa
 
     const load = async () => {
       try {
-        const response = await fetch(`/api/room/${roomCode}/game`)
+        const response = await apiFetch(`/api/room/${roomCode}/game`)
         if (!response.ok) return
 
         const data = (await response.json()) as GameResponse

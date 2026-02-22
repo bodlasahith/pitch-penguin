@@ -1,4 +1,5 @@
 import type { CSSProperties, PointerEvent } from 'react'
+import { apiFetch } from '../utils/api'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
@@ -99,8 +100,8 @@ export default function Pitch() {
       setAiAttempted(true)
     }
     const [gameResponse, pitchesResponse] = await Promise.all([
-      fetch(`/api/room/${roomCode}/game`),
-      fetch(`/api/room/${roomCode}/pitches`)
+      apiFetch(`/api/room/${roomCode}/game`),
+      apiFetch(`/api/room/${roomCode}/pitches`)
     ])
     const data = (await gameResponse.json()) as GameResponse
     if (!data.ok || !data.room) {
@@ -190,7 +191,7 @@ export default function Pitch() {
     }
     setReadyError('')
     const sketchData = getSketchData()
-    await fetch(`/api/room/${roomCode}/pitch`, {
+    await apiFetch(`/api/room/${roomCode}/pitch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -235,7 +236,7 @@ export default function Pitch() {
     }
     setGenerating(true)
     try {
-      const response = await fetch(`/api/room/${roomCode}/generate-pitch`, {
+      const response = await apiFetch(`/api/room/${roomCode}/generate-pitch`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

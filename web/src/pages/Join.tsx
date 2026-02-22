@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { apiFetch } from '../utils/api'
 import { useNavigate } from 'react-router-dom'
 import { playActionSound } from '../utils/soundEffects'
 
@@ -28,7 +29,7 @@ export default function Join() {
     setBanner('')
     try {
       setStatus('joining')
-      const response = await fetch('/api/rooms/join', {
+      const response = await apiFetch('/api/rooms/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: trimmed, playerName })
@@ -61,7 +62,7 @@ export default function Join() {
     setBanner('')
     try {
       setStatus('joining')
-      const response = await fetch('/api/rooms/join', {
+      const response = await apiFetch('/api/rooms/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: lastRoom, playerName: lastName })

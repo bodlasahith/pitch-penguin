@@ -1,3 +1,5 @@
+import { apiFetch } from './api'
+
 export type ServerTtsRequest = {
   text: string
   voiceProfile?: string
@@ -5,7 +7,7 @@ export type ServerTtsRequest = {
 }
 
 export const fetchServerTtsAudio = async (payload: ServerTtsRequest): Promise<Blob | null> => {
-  const response = await fetch('/api/tts', {
+  const response = await apiFetch('/api/tts', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

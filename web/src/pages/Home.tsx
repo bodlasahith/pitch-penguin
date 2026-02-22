@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { apiFetch } from '../utils/api'
 import { useNavigate } from 'react-router-dom'
 import { playActionSound } from '../utils/soundEffects'
 
@@ -38,8 +39,8 @@ export default function Home() {
     const load = async () => {
       try {
         const [healthResponse, rulesResponse] = await Promise.all([
-          fetch('/api/health'),
-          fetch('/api/rules')
+          apiFetch('/api/health'),
+          apiFetch('/api/rules')
         ])
         if (!healthResponse.ok) {
           throw new Error('Health check failed')
@@ -75,7 +76,7 @@ export default function Home() {
       }
       setRoomStatus('loading')
       setRoomError('')
-      const response = await fetch('/api/rooms', {
+      const response = await apiFetch('/api/rooms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ hostName: trimmedName })

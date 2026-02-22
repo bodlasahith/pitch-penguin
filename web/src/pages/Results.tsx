@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { apiFetch } from '../utils/api'
 import { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
@@ -80,7 +81,7 @@ export default function Results() {
     const load = async () => {
       if (!roomCode) return
 
-      const response = await fetch(`/api/room/${roomCode}/game`)
+      const response = await apiFetch(`/api/room/${roomCode}/game`)
       if (!response.ok) return
 
       const data = (await response.json()) as GameResponse
@@ -97,7 +98,7 @@ export default function Results() {
         
         // Fetch final round pitches if there was a final round and game is over
         if (hasFinalRound && (data.room.gameWinner || data.room.gameWinners) && data.room.finalRoundPlayers) {
-          const pitchesResponse = await fetch(`/api/room/${roomCode}/pitches`)
+          const pitchesResponse = await apiFetch(`/api/room/${roomCode}/pitches`)
           if (pitchesResponse.ok) {
             const pitchData = (await pitchesResponse.json()) as { ok: boolean; pitches: Pitch[] }
             if (pitchData.ok) {
@@ -203,7 +204,7 @@ export default function Results() {
     }
     
     try {
-      const response = await fetch(`/api/room/${roomCode}/advance-round`, {
+      const response = await apiFetch(`/api/room/${roomCode}/advance-round`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({})

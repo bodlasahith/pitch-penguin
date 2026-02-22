@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { apiFetch } from '../utils/api'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import TopNav from './TopNav'
@@ -70,7 +71,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     let intervalId: number | undefined
 
     const loadPhase = async () => {
-      const response = await fetch(`/api/room/${roomCode}/game`)
+      const response = await apiFetch(`/api/room/${roomCode}/game`)
       if (!response.ok) {
         return
       }
@@ -174,7 +175,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
       }
 
       try {
-        const response = await fetch(`/api/room/${roomCode}/player-ready`, {
+        const response = await apiFetch(`/api/room/${roomCode}/player-ready`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playerName })
@@ -243,7 +244,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     try {
       setLeaving(true)
       if (playerName) {
-        await fetch('/api/rooms/leave', {
+        await apiFetch('/api/rooms/leave', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ code: roomCode, playerName })

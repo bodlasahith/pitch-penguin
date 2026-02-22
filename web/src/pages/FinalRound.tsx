@@ -1,4 +1,5 @@
 import type { CSSProperties, PointerEvent } from 'react'
+import { apiFetch } from '../utils/api'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
@@ -260,8 +261,8 @@ export default function FinalRound() {
 
     try {
       const [gameResponse, pitchesResponse] = await Promise.all([
-        fetch(`/api/room/${roomCode}/game`),
-        fetch(`/api/room/${roomCode}/pitches`)
+        apiFetch(`/api/room/${roomCode}/game`),
+        apiFetch(`/api/room/${roomCode}/pitches`)
       ])
 
       if (!gameResponse.ok) {
@@ -395,7 +396,7 @@ export default function FinalRound() {
       if (finalRoundReadyRef.current) return
 
       try {
-        const response = await fetch(`/api/room/${roomCode}/player-ready`, {
+        const response = await apiFetch(`/api/room/${roomCode}/player-ready`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ playerName })
@@ -444,7 +445,7 @@ export default function FinalRound() {
     setReadyError('')
     const sketchData = getSketchData()
     
-    await fetch(`/api/room/${roomCode}/pitch`, {
+    await apiFetch(`/api/room/${roomCode}/pitch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -477,7 +478,7 @@ export default function FinalRound() {
     setProposingTruce(true)
     
     // Submit empty pitch to signal truce
-    await fetch(`/api/room/${roomCode}/pitch`, {
+    await apiFetch(`/api/room/${roomCode}/pitch`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -502,7 +503,7 @@ export default function FinalRound() {
     if (isPitcher || viewedPitches.has(pitchId)) return
 
     try {
-      await fetch(`/api/room/${roomCode}/pitch-viewed`, {
+      await apiFetch(`/api/room/${roomCode}/pitch-viewed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -546,7 +547,7 @@ export default function FinalRound() {
 
     try {
       console.log('Submitting ranking:', { playerName, rankedPitchIds })
-      const response = await fetch(`/api/room/${roomCode}/tiebreaker-ranking`, {
+      const response = await apiFetch(`/api/room/${roomCode}/tiebreaker-ranking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

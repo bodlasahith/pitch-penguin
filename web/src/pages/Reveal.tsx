@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { apiFetch } from '../utils/api'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
@@ -279,7 +280,7 @@ export default function Reveal() {
       if (!roomCode) {
         return
       }
-      const response = await fetch(`/api/room/${roomCode}/pitches`)
+      const response = await apiFetch(`/api/room/${roomCode}/pitches`)
       if (!response.ok) {
         return
       }
@@ -306,7 +307,7 @@ export default function Reveal() {
         }
       }
 
-      const gameResponse = await fetch(`/api/room/${roomCode}/game`)
+      const gameResponse = await apiFetch(`/api/room/${roomCode}/game`)
       const gameData = (await gameResponse.json()) as GameResponse
       if (gameData.ok && gameData.room) {
         setPenguin(gameData.room.penguin)
@@ -381,7 +382,7 @@ export default function Reveal() {
       return
     }
     try {
-      const response = await fetch(`/api/room/${roomCode}/challenge`, {
+      const response = await apiFetch(`/api/room/${roomCode}/challenge`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -464,7 +465,7 @@ export default function Reveal() {
     if (viewedPitchIds.includes(pitchId)) {
       return
     }
-    await fetch(`/api/room/${roomCode}/pitch-viewed`, {
+    await apiFetch(`/api/room/${roomCode}/pitch-viewed`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ pitchId, viewer: playerName })
@@ -801,7 +802,7 @@ export default function Reveal() {
                   if (!roomCode || !selectedWinnerId) return
                   try {
                     setSubmitting(true)
-                    const response = await fetch(`/api/room/${roomCode}/judge`, {
+                    const response = await apiFetch(`/api/room/${roomCode}/judge`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ winnerPitchId: selectedWinnerId })

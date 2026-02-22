@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { apiFetch } from '../utils/api'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 import { AnimatedMascot } from '../components/AnimatedMascot'
@@ -101,7 +102,7 @@ export default function Lobby() {
         setRoomStatus('error')
         return
       }
-      const response = await fetch(`/api/room/${code}`)
+      const response = await apiFetch(`/api/room/${code}`)
       const data = (await response.json()) as RoomResponse
       if (!data.ok || !data.players) {
         setRoomStatus('error')
@@ -113,7 +114,7 @@ export default function Lobby() {
           (player) => player.name.toLowerCase() === storedName.toLowerCase()
         )
         if (!exists) {
-          await fetch('/api/rooms/join', {
+          await apiFetch('/api/rooms/join', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code, playerName: storedName })
@@ -121,7 +122,7 @@ export default function Lobby() {
         }
       }
 
-      const gameResponse = await fetch(`/api/room/${code}/game`)
+      const gameResponse = await apiFetch(`/api/room/${code}/game`)
       const gameData = (await gameResponse.json()) as GameResponse
       if (gameData.ok && gameData.room) {
         setRobotVoiceEnabled(gameData.room.robotVoiceEnabled)
@@ -210,7 +211,7 @@ export default function Lobby() {
     }
     try {
       setLeaveStatus('leaving')
-      const response = await fetch('/api/rooms/leave', {
+      const response = await apiFetch('/api/rooms/leave', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code, playerName })
@@ -248,7 +249,7 @@ export default function Lobby() {
     }
     const nextValue = !robotVoiceEnabled
     setRobotVoiceEnabled(nextValue)
-    await fetch(`/api/room/${code}/toggle-voice`, {
+    await apiFetch(`/api/room/${code}/toggle-voice`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: nextValue })
@@ -272,7 +273,7 @@ export default function Lobby() {
     if (!playerName) {
       return
     }
-    const response = await fetch(`/api/room/${code}/mascot`, {
+    const response = await apiFetch(`/api/room/${code}/mascot`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerName, mascot })
@@ -288,7 +289,7 @@ export default function Lobby() {
       return
     }
     const playerName = localStorage.getItem(`pp:player:${code}`) ?? ''
-    const response = await fetch(`/api/room/${code}/advance`, {
+    const response = await apiFetch(`/api/room/${code}/advance`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ playerName })

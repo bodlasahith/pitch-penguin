@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react'
+import { apiFetch } from '../utils/api'
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotImage } from '../utils/mascots'
@@ -54,7 +55,7 @@ export default function Deal() {
       return
     }
     setStatus('loading')
-    const response = await fetch(`/api/room/${roomCode}/game`)
+    const response = await apiFetch(`/api/room/${roomCode}/game`)
     const data = (await response.json()) as GameResponse
     if (!data.ok || !data.room) {
       setStatus('error')
@@ -126,7 +127,7 @@ export default function Deal() {
     if (!roomCode || !selectedOption) {
       return
     }
-    await fetch(`/api/room/${roomCode}/select-ask`, {
+    await apiFetch(`/api/room/${roomCode}/select-ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ask: selectedOption })
@@ -138,7 +139,7 @@ export default function Deal() {
     if (!roomCode) {
       return
     }
-    await fetch(`/api/room/${roomCode}/select-ask`, {
+    await apiFetch(`/api/room/${roomCode}/select-ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ask: selectedOption || askOptions[0] })
