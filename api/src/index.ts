@@ -133,19 +133,22 @@ const server = Fastify({
   logger: true,
 });
 let io: SocketIOServer | null = null;
+const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, "");
+
 const ALLOWED_ORIGINS = (process.env.CORS_ORIGIN ?? "")
   .split(",")
-  .map((value) => value.trim())
+  .map((value) => normalizeOrigin(value))
   .filter(Boolean);
 
 const isOriginAllowed = (origin?: string) => {
   if (!origin) {
     return true;
   }
+  const normalizedOrigin = normalizeOrigin(origin);
   if (ALLOWED_ORIGINS.length === 0) {
     return true;
   }
-  return ALLOWED_ORIGINS.includes(origin);
+  return ALLOWED_ORIGINS.includes(normalizedOrigin);
 };
 
 server.addHook("onRequest", (request, reply, done) => {
