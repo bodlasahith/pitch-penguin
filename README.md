@@ -2,6 +2,8 @@
 
 Pitch Penguin is a multiplayer party game where players pitch chaotic startup ideas under constraints, while one rotating judge ("the Penguin") picks winners.
 
+https://pitch-penguin.vercel.app/
+
 This repository is a Node monorepo with:
 - `web`: React + Vite frontend
 - `api`: Fastify + Socket.IO backend
