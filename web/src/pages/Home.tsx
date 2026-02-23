@@ -2,16 +2,12 @@ import { useEffect, useState } from 'react'
 import { apiFetch } from '../utils/api'
 import { useNavigate } from 'react-router-dom'
 import { playActionSound } from '../utils/soundEffects'
+import GameFlowInfographic from '../components/GameFlowInfographic'
 
 type HealthStatus = {
   ok: boolean
   service: string
   time: string
-}
-
-type RulesResponse = {
-  ok: boolean
-  rules: string[]
 }
 
 type CreateRoomResponse = {
@@ -26,7 +22,6 @@ export default function Home() {
   const navigate = useNavigate()
   const [health, setHealth] = useState<HealthStatus | null>(null)
   const [status, setStatus] = useState<'idle' | 'live' | 'down'>('idle')
-  const [rules, setRules] = useState<string[]>([])
   const [roomStatus, setRoomStatus] = useState<'idle' | 'loading' | 'error'>(
     'idle'
   )
@@ -38,21 +33,14 @@ export default function Home() {
 
     const load = async () => {
       try {
-        const [healthResponse, rulesResponse] = await Promise.all([
-          apiFetch('/api/health'),
-          apiFetch('/api/rules')
-        ])
+        const [healthResponse] = await Promise.all([apiFetch('/api/health')])
         if (!healthResponse.ok) {
           throw new Error('Health check failed')
         }
         const data = (await healthResponse.json()) as HealthStatus
-        const rulesData = rulesResponse.ok
-          ? ((await rulesResponse.json()) as RulesResponse)
-          : null
         if (!cancelled) {
           setHealth(data)
           setStatus('live')
-          setRules(rulesData?.rules ?? [])
         }
       } catch (err) {
         if (!cancelled) {
@@ -166,97 +154,26 @@ export default function Home() {
           )}
         </div>
         <div className="panel">
-          <h3>Visual pitch board</h3>
+          <h3>Pitching features</h3>
           <p>
-            Add a doodle or logo sketch while you pitch, Pictionary-style. Make sure to
+            <strong>Visual pitch board: </strong>Add a doodle or logo sketch while you pitch, Pictionary-style. Make sure to
             <span title="Keep it simple, stupid."> KiSS!</span>
           </p>
-          <h3 style={{ marginTop: '24px' }}>Robot reader</h3>
-          <p>
-            Every pitch gets an robot voice. Choose from quirky announcers and
+          <p style={{ marginTop: '24px' }}>
+            <strong>Robot reader: </strong>Every pitch gets an robot voice. Choose from quirky announcers and
             crisp startup narrators, if you don't want to do the honors yourself.
           </p>
-          <h3 style={{ marginTop: '24px' }}>The AI angle</h3>
-          <p>
-            If you can't come up with a pitch in time, the AI Assistant has your back.
+          <p style={{ marginTop: '24px' }}>
+            <strong>The AI angle: </strong>If you can't come up with a pitch in time, the AI Assistant has your back.
             But beware - if your opponents correctly guess that your pitch was AI-generated,
             you could be disqualified and lose money. Use it wisely!
           </p>
         </div>
       </section>
       <section className="panel">
-        <h3>Rules of the game</h3>
-        <div className="grid">
-          <ul className="list">
-            {(rules.length > 0
-              ? rules.slice(0, Math.ceil(rules.length / 2))
-              : ['Loading rules...']
-            ).map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
-          <ul className="list">
-            {(rules.length > 0
-              ? rules.slice(Math.ceil(rules.length / 2))
-              : []
-            ).map((rule) => (
-              <li key={rule}>{rule}</li>
-            ))}
-          </ul>
-        </div>
-      </section>
-
-      <section className="panel">
-        <h3>Round flow</h3>
-        <div className="grid">
-          <div className="card">
-            <strong>1. Deal cards</strong>
-            <span>PROBLEM + CONSTRAINTS + TWIST.</span>
-          </div>
-          <div className="card">
-            <strong>2. Write pitch</strong>
-            <span>Timer + pitch + description + optional sketch.</span>
-          </div>
-          <div className="card">
-            <strong>3. Reveal</strong>
-            <span>Players take turns presenting to the Penguin.</span>
-          </div>
-          <div className="card">
-            <strong>4. Vote</strong>
-            <span>Penguin crowns the winner of the round and invests in them.</span>
-          </div>
-        </div>
-        <h3 style={{ marginTop: '24px' }}>Final round Case A: Top player pitch-off</h3>
-        <div className="grid">
-          <div className="card">
-            <strong>1. Write pitch</strong>
-            <span>
-              Auto assigned PROBLEM + CONSTRAINTS. Top 2-7 players pitch head-to-head.
-            </span>
-          </div>
-          <div className="card">
-            <strong>2. Vote</strong>
-            <span>
-              Penguin(es) rank the pitches best to worst. Player with the most money wins.
-            </span>
-          </div>
-        </div>
-        <h3 style={{ marginTop: '24px' }}>Final round Case B: Top player immunity</h3>
-        <div className="grid">
-          <div className="card">
-            <strong>1. Write pitch</strong>
-            <span>
-              Auto assigned PROBLEM + CONSTRAINTS. Top player gets immunity bonus and becomes
-              Penguin. Everyone else pitches to compete for ranks 2-7.
-            </span>
-          </div>
-          <div className="card">
-            <strong>2. Vote</strong>
-            <span>
-              Penguin ranks the pitches best to worst. Players may rise or fall,
-              but the penguin stays safe on top.
-            </span>
-          </div>
+        <h3>Game flow at a glance</h3>
+        <div style={{ marginTop: '12px', borderRadius: '14px', overflow: 'hidden' }}>
+          <GameFlowInfographic />
         </div>
       </section>
     </>

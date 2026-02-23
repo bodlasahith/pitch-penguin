@@ -2,6 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 
 const links = [
   { to: '/', label: 'Home' },
+  { to: '/rules', label: 'Rules' },
   { to: '/join', label: 'Join' }
 ]
 

@@ -5,6 +5,7 @@ import AppLayout from './components/AppLayout'
 import Deal from './pages/Deal'
 import Home from './pages/Home'
 import Join from './pages/Join'
+import Rules from './pages/Rules'
 import Lobby from './pages/Lobby'
 import Pitch from './pages/Pitch'
 import Reveal from './pages/Reveal'
@@ -20,6 +21,7 @@ function App() {
     <Routes>
       <Route path="/" element={withLayout(<Home />)} />
       <Route path="/join" element={withLayout(<Join />)} />
+      <Route path="/rules" element={withLayout(<Rules />)} />
       <Route path="/lobby/:code" element={withLayout(<Lobby />)} />
       <Route path="/deal" element={withLayout(<Deal />)} />
       <Route path="/deal/:code" element={withLayout(<Deal />)} />

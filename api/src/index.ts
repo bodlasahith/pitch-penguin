@@ -423,7 +423,7 @@ const initializeGameState = (room: Room): RoomGameState => {
     penguinQueueIndex,
     round: 0,
     penguinAskTimerSeconds: 30,
-    pitchTimerSeconds: 120,
+    pitchTimerSeconds: 90,
     askDeckQueue,
     mustHaveDeckQueue: shuffle(MUST_HAVE_DECK),
     surpriseDeckQueue: shuffle(SURPRISE_DECK),
@@ -454,6 +454,10 @@ const initializeGameState = (room: Room): RoomGameState => {
     timerStarted: false,
   };
 };
+
+const isValidDealTimerSeconds = (value: number) => Number.isInteger(value) && value >= 15 && value <= 45;
+const isValidPitchTimerSeconds = (value: number) =>
+  Number.isInteger(value) && value >= 60 && value <= 300 && value % 30 === 0;
 
 const getRoomGameState = (room: Room) => {
   const existing = roomGameStates.get(room.code);
@@ -1379,7 +1383,7 @@ server.post("/api/room/:code/advance", async (request) => {
 
 server.post("/api/room/:code/select-ask", async (request) => {
   const { code } = request.params as { code: string };
-  const body = request.body as { ask?: string };
+  const body = request.body as { ask?: string; playerName?: string };
   const room = rooms.get(code);
   if (!room) {
     return {
@@ -1389,11 +1393,31 @@ server.post("/api/room/:code/select-ask", async (request) => {
   }
   const gameState = getRoomGameState(room);
   const ask = body.ask?.trim();
-  if (!ask || !gameState.askOptions.includes(ask)) {
+  const playerName = body.playerName?.trim() ?? "";
+  const penguinPlayer = room.players.find(
+    (player) => normalizeName(player.name) === normalizeName(gameState.penguin),
+  );
+  if (!ask || !playerName || normalizeName(playerName) !== normalizeName(gameState.penguin)) {
     return {
       ok: false,
-      message: "Ask not available",
+      message: "Only the current penguin can select the PROBLEM",
     };
+  }
+  const isPresetAsk = gameState.askOptions.includes(ask);
+  const isWalrusCustomAsk = Boolean(penguinPlayer && penguinPlayer.mascot === "walrus");
+  if (!isPresetAsk) {
+    if (!isWalrusCustomAsk) {
+      return {
+        ok: false,
+        message: "Ask not available",
+      };
+    }
+    if (ask.length < 10 || ask.length > 180) {
+      return {
+        ok: false,
+        message: "Custom PROBLEM must be between 10 and 180 characters",
+      };
+    }
   }
   gameState.selectedAsk = ask;
   if (gameState.askSelectionTimeoutId) {
@@ -1406,6 +1430,53 @@ server.post("/api/room/:code/select-ask", async (request) => {
   return {
     ok: true,
     selectedAsk: ask,
+  };
+});
+
+server.post("/api/room/:code/timers", async (request) => {
+  const { code } = request.params as { code: string };
+  const body = request.body as { playerName?: string; dealTimerSeconds?: number; pitchTimerSeconds?: number };
+  const room = rooms.get(code);
+  if (!room) {
+    return {
+      ok: false,
+      message: "Room not found",
+    };
+  }
+
+  const playerName = body.playerName?.trim() ?? "";
+  const host = room.players.find((player) => player.isHost);
+  if (!host || !playerName || normalizeName(host.name) !== normalizeName(playerName)) {
+    return {
+      ok: false,
+      message: "Only the host can update timers",
+    };
+  }
+
+  const dealTimerSeconds = Number(body.dealTimerSeconds);
+  const pitchTimerSeconds = Number(body.pitchTimerSeconds);
+  if (!isValidDealTimerSeconds(dealTimerSeconds)) {
+    return {
+      ok: false,
+      message: "Deal timer must be between 15 and 45 seconds",
+    };
+  }
+  if (!isValidPitchTimerSeconds(pitchTimerSeconds)) {
+    return {
+      ok: false,
+      message: "Pitch timer must be 60 to 300 seconds in 30-second intervals",
+    };
+  }
+
+  const gameState = getRoomGameState(room);
+  gameState.penguinAskTimerSeconds = dealTimerSeconds;
+  gameState.pitchTimerSeconds = pitchTimerSeconds;
+  emitRoomSnapshot(code);
+
+  return {
+    ok: true,
+    penguinAskTimerSeconds: gameState.penguinAskTimerSeconds,
+    pitchTimerSeconds: gameState.pitchTimerSeconds,
   };
 });
 

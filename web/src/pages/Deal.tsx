@@ -37,6 +37,7 @@ export default function Deal() {
   const [surprise, setSurprise] = useState<string | null>(null)
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [selectedOption, setSelectedOption] = useState('')
+  const [customProblem, setCustomProblem] = useState('')
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const [clockOffsetMs, setClockOffsetMs] = useState(0)
   const [allPlayers, setAllPlayers] = useState<Array<{ name: string; mascot?: string }>>([])
@@ -127,10 +128,15 @@ export default function Deal() {
     if (!roomCode || !selectedOption) {
       return
     }
+    const askToSubmit =
+      selectedOption === '__custom__' ? customProblem.trim() : selectedOption
+    if (!askToSubmit) {
+      return
+    }
     await apiFetch(`/api/room/${roomCode}/select-ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ask: selectedOption })
+      body: JSON.stringify({ ask: askToSubmit, playerName })
     })
     await load()
   }
@@ -139,15 +145,24 @@ export default function Deal() {
     if (!roomCode) {
       return
     }
+    const trimmedCustom = customProblem.trim()
+    const askToSubmit =
+      selectedOption === '__custom__' && trimmedCustom.length >= 10
+        ? trimmedCustom
+        : selectedOption && selectedOption !== '__custom__'
+          ? selectedOption
+          : askOptions[0]
     await apiFetch(`/api/room/${roomCode}/select-ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ask: selectedOption || askOptions[0] })
+      body: JSON.stringify({ ask: askToSubmit, playerName })
     })
     await load()
   }
 
   const isPenguin = penguin && playerName && penguin.toLowerCase() === playerName.toLowerCase()
+  const currentPlayer = allPlayers.find((player) => player.name.toLowerCase() === playerName.toLowerCase())
+  const canUseCustomProblem = isPenguin && currentPlayer?.mascot === 'walrus'
   const mustHavesRevealed = !!selectedAsk
   const penguinPlayer = allPlayers.find((player) => player.name === penguin)
   const penguinMascotImg = getMascotImage(penguinPlayer?.mascot)
@@ -182,7 +197,9 @@ export default function Deal() {
           </h1>
           <p>
             {isPenguin ? (
-              'Choose 1 of 3 PROBLEM cards for this round. Other players get 4 CONSTRAINTS.'
+              canUseCustomProblem
+                ? 'Choose 1 of 3 PROBLEM cards or write your own custom PROBLEM. Other players get 4 CONSTRAINTS.'
+                : 'Choose 1 of 3 PROBLEM cards for this round. Other players get 4 CONSTRAINTS.'
             ) : (
               <span>
                 The Penguin{' '}
@@ -255,12 +272,65 @@ export default function Deal() {
                     </div>
                   </label>
                 ))}
+                {canUseCustomProblem && (
+                  <label
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      backgroundColor:
+                        selectedOption === '__custom__' ? 'rgba(100, 200, 100, 0.15)' : '#f5f5f5',
+                      border:
+                        selectedOption === '__custom__' ? '2px solid #4a7c4e' : '1px solid #ddd',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <input
+                        type="radio"
+                        name="ask"
+                        value="__custom__"
+                        checked={selectedOption === '__custom__'}
+                        onChange={() => setSelectedOption('__custom__')}
+                        style={{ marginRight: '12px', marginTop: '2px' }}
+                      />
+                      <div style={{ width: '100%' }}>
+                        <strong>Custom PROBLEM (Walrus)</strong>
+                        <textarea
+                          value={customProblem}
+                          onChange={(event) => {
+                            setCustomProblem(event.target.value)
+                            setSelectedOption('__custom__')
+                          }}
+                          placeholder="Write your own PROBLEM card..."
+                          rows={3}
+                          maxLength={180}
+                          style={{
+                            width: '100%',
+                            marginTop: '8px',
+                            borderRadius: '8px',
+                            border: '1px solid #d6d0c8',
+                            padding: '8px',
+                            fontFamily: 'inherit',
+                            fontSize: '0.9rem',
+                            resize: 'vertical',
+                          }}
+                        />
+                        <span style={{ fontSize: '0.8rem', color: '#666' }}>
+                          10-180 characters
+                        </span>
+                      </div>
+                    </div>
+                  </label>
+                )}
               </div>
               <div className="footer-actions" style={{ marginTop: '16px' }}>
                 <button
                   className="button"
                   onClick={handleSelectAsk}
-                  disabled={!selectedOption}
+                  disabled={!selectedOption || (selectedOption === '__custom__' && customProblem.trim().length < 10)}
                 >
                   Lock This PROBLEM
                 </button>

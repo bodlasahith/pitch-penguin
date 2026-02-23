@@ -3,6 +3,7 @@ import { apiFetch } from '../utils/api'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 import { AnimatedMascot } from '../components/AnimatedMascot'
+import { MascotTableScene } from '../components/MascotTableScene'
 import type { MascotEvent } from '../hooks/useAnimationTrigger'
 import {
   isSoundEffectsEnabled,
@@ -44,6 +45,8 @@ type GameResponse = {
   ok: boolean
   room?: {
     robotVoiceEnabled: boolean
+    penguinAskTimerSeconds: number
+    pitchTimerSeconds: number
     phase?: string
   }
 }
@@ -63,6 +66,8 @@ export default function Lobby() {
     'idle'
   )
   const [robotVoiceEnabled, setRobotVoiceEnabled] = useState(true)
+  const [dealTimerSeconds, setDealTimerSeconds] = useState(30)
+  const [pitchTimerSeconds, setPitchTimerSeconds] = useState(90)
   const [phase, setPhase] = useState('lobby')
   const [hostName, setHostName] = useState('')
   const [hostChanged, setHostChanged] = useState(false)
@@ -89,6 +94,15 @@ export default function Lobby() {
     { name: 'Crypto Raccoon', id: 'raccoon', svg: raccoonSVG },
     { name: 'Mad Scientist (PhD)', id: 'scientist', svg: scientistSVG }
   ]
+
+  const formatPitchTimerLabel = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60)
+    const remainder = seconds % 60
+    if (!remainder) {
+      return `${minutes}m`
+    }
+    return `${minutes}m ${remainder}s`
+  }
 
   useEffect(() => {
     playPhaseSound('lobby')
@@ -126,6 +140,8 @@ export default function Lobby() {
       const gameData = (await gameResponse.json()) as GameResponse
       if (gameData.ok && gameData.room) {
         setRobotVoiceEnabled(gameData.room.robotVoiceEnabled)
+        setDealTimerSeconds(gameData.room.penguinAskTimerSeconds)
+        setPitchTimerSeconds(gameData.room.pitchTimerSeconds)
         const nextPhase = gameData.room.phase ?? 'lobby'
         setPhase(nextPhase)
         if (nextPhase !== 'lobby') {
@@ -265,6 +281,40 @@ export default function Lobby() {
     }
   }
 
+  const handleDealTimerChange = async (nextValue: number) => {
+    if (!code || !isHost) {
+      return
+    }
+    setDealTimerSeconds(nextValue)
+    const playerName = localStorage.getItem(`pp:player:${code}`) ?? ''
+    await apiFetch(`/api/room/${code}/timers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerName,
+        dealTimerSeconds: nextValue,
+        pitchTimerSeconds
+      })
+    })
+  }
+
+  const handlePitchTimerChange = async (nextValue: number) => {
+    if (!code || !isHost) {
+      return
+    }
+    setPitchTimerSeconds(nextValue)
+    const playerName = localStorage.getItem(`pp:player:${code}`) ?? ''
+    await apiFetch(`/api/room/${code}/timers`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        playerName,
+        dealTimerSeconds,
+        pitchTimerSeconds: nextValue
+      })
+    })
+  }
+
   const handleMascotSelect = async (mascot: string) => {
     if (!code) {
       return
@@ -333,7 +383,16 @@ export default function Lobby() {
 
   return (
     <>
-      <section className="page-header">
+      <section
+        className="page-header"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          alignItems: 'start',
+          width: '100%',
+          gap: '16px',
+        }}
+      >
         <div>
           <div className="eyebrow">Room</div>
           <h1>Lobby</h1>
@@ -342,21 +401,36 @@ export default function Lobby() {
             then start the chaos.
           </p>
           {hostChanged && <span className="badge">Host changed</span>}
-          {activityLog.length > 0 && (
-            <div className="panel" style={{ marginTop: '12px' }}>
+          <div
+            style={{
+              marginTop: '12px',
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '12px',
+              alignItems: 'stretch',
+            }}
+          >
+            <div className="panel" style={{ margin: 0 }}>
               <h3>Activity</h3>
-              <ul className="list">
-                {activityLog.map((entry, index) => (
-                  <li key={`${entry}-${index}`}>{entry}</li>
-                ))}
-              </ul>
+              {activityLog.length > 0 ? (
+                <ul className="list">
+                  {activityLog.map((entry, index) => (
+                    <li key={`${entry}-${index}`}>{entry}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p style={{ marginTop: '8px', color: '#6b6056' }}>No recent activity yet.</p>
+              )}
             </div>
-          )}
+          </div>
+        </div>
+        <div style={{ alignSelf: 'stretch', display: 'flex', alignItems: 'center' }}>
+          <MascotTableScene />
         </div>
         <div className="panel">
           <h3>Room code</h3>
           <div className="timer">{code ?? 'TBD'}</div>
-          <p style={{ marginTop: '8px' }}>Mode: Online + Local hybrid</p>
+          <p style={{ marginTop: '8px' }}>Mode: Online + Couch Party</p>
           <div className="footer-actions" style={{ marginTop: '12px' }}>
             <button className="button secondary" onClick={handleCopy}>
               {copyStatus === 'copied' ? 'Copied' : 'Copy code'}
@@ -507,7 +581,40 @@ export default function Lobby() {
         <div className="panel">
           <h3>Game settings</h3>
           <ul className="list">
-            <li>Pitch timer: 90 seconds</li>
+            <li>
+              Deal timer: {dealTimerSeconds}s
+              {isHost && (
+                <input
+                  type="range"
+                  min={15}
+                  max={45}
+                  step={5}
+                  value={dealTimerSeconds}
+                  onChange={(event) => handleDealTimerChange(Number(event.target.value))}
+                  style={{ marginLeft: '12px', width: '180px', verticalAlign: 'middle' }}
+                />
+              )}
+            </li>
+            <li>
+              Pitch timer: {pitchTimerSeconds}s
+              {isHost && (
+                <span style={{ marginLeft: '8px', fontSize: '0.9rem', color: '#6b6056' }}>
+                  ({formatPitchTimerLabel(pitchTimerSeconds)})
+                </span>
+              )}
+              {isHost && (
+                <input
+                  type="range"
+                  min={60}
+                  max={300}
+                  step={30}
+                  value={pitchTimerSeconds}
+                  onChange={(event) => handlePitchTimerChange(Number(event.target.value))}
+                  style={{ marginLeft: '12px', width: '220px', verticalAlign: 'middle' }}
+                />
+              )}
+              
+            </li>
             <li>
               Robot voices: {robotVoiceEnabled ? 'Enabled' : 'Disabled'}
               <button
