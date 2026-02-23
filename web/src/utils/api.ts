@@ -1,6 +1,18 @@
 const rawApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim() ?? ''
 
-export const API_BASE_URL = rawApiBaseUrl.replace(/\/+$/, '')
+const normalizeApiBaseUrl = (value: string) => {
+  const trimmed = value.trim().replace(/\/+$/, '')
+  if (!trimmed) {
+    return ''
+  }
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed
+  }
+
+  return `https://${trimmed}`
+}
+
+export const API_BASE_URL = normalizeApiBaseUrl(rawApiBaseUrl)
 
 export const apiUrl = (path: string) => {
   if (/^https?:\/\//i.test(path)) {
