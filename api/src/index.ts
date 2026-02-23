@@ -9,11 +9,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
-type Player = {
-  name: string;
-  points: number;
-};
-
 type Pitch = {
   id: string;
   player: string;
@@ -25,21 +20,6 @@ type Pitch = {
   sketchData?: string | null;
   isValid?: boolean;
   isDisqualified?: boolean;
-};
-
-type RoundVote = {
-  pitchId: string;
-  voter: string;
-  createdAt: string;
-};
-
-type RoundResult = {
-  round: number;
-  winner: string;
-  pitchId: string;
-  penguinSurpriseWinner: boolean;
-  pointsAwarded: number;
-  createdAt: string;
 };
 
 type Challenge = {
@@ -121,8 +101,6 @@ type RoomGameState = {
   finalRoundPlayers: string[];
   finalRoundRankings: Record<string, string[]>;
   judgeViewedPitches: Record<string, Set<string>>;
-  finalRoundPenguin?: string | null;
-  finalRoundTruceByPlayer: Record<string, boolean>;
   truceActivated?: boolean;
   roundNoParticipation: boolean;
   playersReady: Set<string>;
@@ -471,8 +449,6 @@ const initializeGameState = (room: Room): RoomGameState => {
     finalRoundPlayers: [],
     finalRoundRankings: {},
     judgeViewedPitches: {},
-    finalRoundPenguin: null,
-    finalRoundTruceByPlayer: {},
     roundNoParticipation: false,
     playersReady: new Set(),
     timerStarted: false,
@@ -686,70 +662,6 @@ const createRoom = (hostName?: string) => {
   return room;
 };
 
-const gameState = {
-  roomCode: "PPG-482",
-  phase: "reveal",
-  round: 2,
-  penguin: "Riley",
-  penguinSurprisePlayer: "Jordan",
-  ask: "Urban commuters are exhausted. Pitch a product that makes their mornings easier.",
-  mustHaves: [
-    "Must include a wearable component.",
-    "Must run on solar power.",
-    "Must integrate with public transit.",
-    "Must include a daily ritual.",
-  ],
-  pitchTimerSeconds: 120,
-  players: [
-    { name: "Sam", points: 4 },
-    { name: "Alex", points: 3 },
-    { name: "Jordan", points: 2 },
-    { name: "Riley", points: 1 },
-  ] as Player[],
-  pitches: [
-    {
-      id: "pitch-1",
-      player: "Jordan",
-      title: "SunRail Band",
-      summary: "Solar wearable + transit sync + espresso drip.",
-      voice: "Neon Announcer",
-      usedMustHaves: ["wearable", "solar", "transit"],
-    },
-    {
-      id: "pitch-2",
-      player: "Alex",
-      title: "Commuter Halo",
-      summary: "Haptic collar that syncs to bus ETA and mood lighting.",
-      voice: "Calm Founder",
-      usedMustHaves: ["wearable", "transit"],
-    },
-    {
-      id: "pitch-3",
-      player: "Sam",
-      title: "Daybreak Clip",
-      summary: "Solar belt clip that unlocks turnstiles and powers earbuds.",
-      voice: "Buzzword Bot",
-      usedMustHaves: ["solar", "transit"],
-    },
-  ] as Pitch[],
-  votes: [] as RoundVote[],
-  challenges: [] as Challenge[],
-  lastResult: null as RoundResult | null,
-};
-
-rooms.set(gameState.roomCode, {
-  code: gameState.roomCode,
-  status: "lobby",
-  players: gameState.players.map((player, index) => ({
-    name: player.name,
-    isHost: index === 0,
-    joinedAt: new Date().toISOString(),
-  })),
-  createdAt: new Date().toISOString(),
-  lastActiveAt: Date.now(),
-});
-roomGameStates.set(gameState.roomCode, initializeGameState(rooms.get(gameState.roomCode)!));
-
 const normalizeName = (name: string) => name.trim().toLowerCase();
 
 const assignNextHost = (room: Room) => {
@@ -835,18 +747,6 @@ const getFinalRoundPlayers = (gameState: RoomGameState): string[] => {
   }
 
   return topPlayers;
-};
-
-const getGameWinner = (gameState: RoomGameState): string | null => {
-  const maxScore = Math.max(...Object.values(gameState.playerScores));
-  if (maxScore < 5) return null;
-
-  // Return winner only if they have >= 5 and game is decided
-  const topPlayers = Object.entries(gameState.playerScores)
-    .filter(([, score]) => score === maxScore)
-    .map(([player]) => player);
-
-  return topPlayers.length === 1 ? topPlayers[0] : null;
 };
 
 const startRevealPhase = (room: Room, gameState: RoomGameState) => {
@@ -1098,59 +998,6 @@ const startDealPhase = (room: Room, gameState: RoomGameState) => {
     gameState.askSelectionTimeoutId = null;
   }
   gameState.askSelectionExpiresAt = null;
-};
-
-const findPlayer = (name: string) => gameState.players.find((player) => player.name === name);
-
-const applyRoundResult = (pitchId: string, voter: string) => {
-  const pitch = gameState.pitches.find((item) => item.id === pitchId);
-  if (!pitch) {
-    return {
-      ok: false,
-      message: "Pitch not found",
-    };
-  }
-
-  if (gameState.lastResult?.round === gameState.round) {
-    const previousWinner = findPlayer(gameState.lastResult.winner);
-    if (previousWinner) {
-      previousWinner.points = Math.max(
-        0,
-        previousWinner.points - gameState.lastResult.pointsAwarded,
-      );
-    }
-  }
-
-  const winner = pitch.player;
-  const penguinSurpriseWinner = winner === gameState.penguinSurprisePlayer;
-  const pointsAwarded = (penguinSurpriseWinner ? 2 : 1) + getMustHaveBonus(pitch.usedMustHaves);
-  const winnerPlayer = findPlayer(winner);
-  if (winnerPlayer) {
-    winnerPlayer.points += pointsAwarded;
-  }
-
-  const result: RoundResult = {
-    round: gameState.round,
-    winner,
-    pitchId,
-    penguinSurpriseWinner,
-    pointsAwarded,
-    createdAt: new Date().toISOString(),
-  };
-
-  gameState.lastResult = result;
-  const existingVote = gameState.votes.find((vote) => vote.voter === voter);
-  if (existingVote) {
-    existingVote.pitchId = pitchId;
-    existingVote.createdAt = new Date().toISOString();
-  } else {
-    gameState.votes.push({ pitchId, voter, createdAt: new Date().toISOString() });
-  }
-
-  return {
-    ok: true,
-    result,
-  };
 };
 
 server.get("/api/health", async () => {
@@ -1559,33 +1406,6 @@ server.post("/api/room/:code/select-ask", async (request) => {
   return {
     ok: true,
     selectedAsk: ask,
-  };
-});
-
-server.post("/api/room/:code/player-status", async (request) => {
-  const { code } = request.params as { code: string };
-  const body = request.body as { playerName?: string; status?: PlayerPitchStatus };
-  const room = rooms.get(code);
-  if (!room) {
-    return {
-      ok: false,
-      message: "Room not found",
-    };
-  }
-  const playerName = body.playerName?.trim() ?? "";
-  const status = body.status ?? "pending";
-  if (!playerName) {
-    return {
-      ok: false,
-      message: "Player name required",
-    };
-  }
-  const gameState = getRoomGameState(room);
-  gameState.pitchStatusByPlayer[playerName] = status;
-  emitRoomSnapshot(code);
-  return {
-    ok: true,
-    pitchStatusByPlayer: gameState.pitchStatusByPlayer,
   };
 });
 
@@ -2369,141 +2189,11 @@ server.post("/api/room/:code/tiebreaker-ranking", async (request) => {
   };
 });
 
-server.post("/api/room/:code/restart", async (request) => {
-  const { code } = request.params as { code: string };
-  const room = rooms.get(code);
-  if (!room) {
-    return {
-      ok: false,
-      message: "Room not found",
-    };
-  }
-
-  const newGameState = initializeGameState(room);
-  roomGameStates.set(code, newGameState);
-  roomPitches.delete(code);
-  room.status = "lobby";
-
-  emitRoomSnapshot(code);
-  return {
-    ok: true,
-    message: "Game restarted",
-    room: {
-      code: room.code,
-      status: room.status,
-      penguin: newGameState.penguin,
-    },
-  };
-});
-
 server.get("/api/rules", async () => {
   return {
     ok: true,
     rules: RULES,
   };
-});
-
-server.get("/api/round", async () => {
-  return {
-    ok: true,
-    round: gameState.round,
-    penguin: gameState.penguin,
-    ask: gameState.ask,
-    mustHaves: gameState.mustHaves,
-    pitchTimerSeconds: gameState.pitchTimerSeconds,
-  };
-});
-
-server.get("/api/round/pitches", async () => {
-  return {
-    ok: true,
-    pitches: gameState.pitches,
-  };
-});
-
-server.get("/api/state", async () => {
-  return {
-    ok: true,
-    room: {
-      code: gameState.roomCode,
-      phase: gameState.phase,
-      penguin: gameState.penguin,
-      penguinSurprisePlayer: gameState.penguinSurprisePlayer,
-    },
-    scores: gameState.players,
-    lastResult: gameState.lastResult,
-  };
-});
-
-server.get("/api/round/results", async () => {
-  if (!gameState.lastResult) {
-    return {
-      ok: false,
-      message: "No results yet",
-    };
-  }
-  return {
-    ok: true,
-    ...gameState.lastResult,
-  };
-});
-
-server.post("/api/round/submit-pitch", async (request) => {
-  const body = request.body as Partial<Pitch>;
-  const pitch: Pitch = {
-    id: body.id ?? `pitch-${Date.now()}`,
-    player: body.player ?? "Guest",
-    title: body.title ?? "Untitled Pitch",
-    summary: body.summary ?? "Pitch summary pending.",
-    voice: body.voice ?? "Neon Announcer",
-    usedMustHaves: body.usedMustHaves ?? [],
-    aiGenerated: body.aiGenerated ?? false,
-  };
-
-  const existingIndex = gameState.pitches.findIndex((item) => item.id === pitch.id);
-  if (existingIndex >= 0) {
-    gameState.pitches[existingIndex] = pitch;
-  } else {
-    gameState.pitches.push(pitch);
-  }
-
-  return {
-    ok: true,
-    status: "received",
-    pitch,
-  };
-});
-
-server.post("/api/round/challenge", async (request) => {
-  const body = request.body as Partial<Challenge>;
-  const challenge: Challenge = {
-    accuser: body.accuser ?? "Anonymous",
-    pitchId: body.pitchId ?? "",
-    verdict: body.verdict ?? "pending",
-    createdAt: new Date().toISOString(),
-  };
-
-  gameState.challenges.push(challenge);
-
-  return {
-    ok: true,
-    status: "challenge-recorded",
-    challenge,
-  };
-});
-
-server.post("/api/round/vote", async (request) => {
-  const body = request.body as { pitchId?: string; voter?: string };
-  const pitchId = body.pitchId ?? "";
-  const voter = body.voter ?? gameState.penguin;
-  if (!pitchId) {
-    return {
-      ok: false,
-      message: "pitchId is required",
-    };
-  }
-
-  return applyRoundResult(pitchId, voter);
 });
 
 const setupSocketServer = () => {
