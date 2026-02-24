@@ -1,7 +1,26 @@
-export default function GameFlowInfographic() {
+type FlowPhase = 'deal' | 'pitch' | 'reveal' | 'vote' | 'results' | 'final-round' | null
+
+type GameFlowInfographicProps = {
+  currentPhase?: FlowPhase
+}
+
+export default function GameFlowInfographic({ currentPhase = null }: GameFlowInfographicProps) {
   const INK   = "#1f2430"
   const CREAM = "#faf8f4"
   const SW    = 2.8   // standard stroke width for characters
+  const highlightedColumn = (() => {
+    if (currentPhase === 'deal') return 0
+    if (currentPhase === 'pitch' || currentPhase === 'final-round') return 1
+    if (currentPhase === 'reveal') return 2
+    if (currentPhase === 'vote' || currentPhase === 'results') return 3
+    return -1
+  })()
+  const columnBounds = [
+    { x: 30, width: 220 },
+    { x: 250, width: 220 },
+    { x: 470, width: 220 },
+    { x: 690, width: 220 },
+  ]
 
   return (
     <svg
@@ -277,6 +296,30 @@ export default function GameFlowInfographic() {
       {/* ══════════════════════════════════
           COLUMN DIVIDERS (dashed)
       ══════════════════════════════════ */}
+      {highlightedColumn >= 0 && (
+        <g>
+          <rect
+            x={columnBounds[highlightedColumn].x + 8}
+            y={62}
+            width={columnBounds[highlightedColumn].width - 16}
+            height={258}
+            rx={14}
+            fill="#fff7d8"
+            opacity={0.8}
+          />
+          <rect
+            x={columnBounds[highlightedColumn].x + 8}
+            y={62}
+            width={columnBounds[highlightedColumn].width - 16}
+            height={258}
+            rx={14}
+            fill="none"
+            stroke={INK}
+            strokeWidth={2.4}
+            strokeDasharray="7 5"
+          />
+        </g>
+      )}
       {[250, 470, 690].map(x => (
         <line key={x} x1={x} y1="52" x2={x} y2="330"
           stroke={INK} strokeWidth="1.5" strokeDasharray="4,3" opacity="0.35"/>
@@ -431,7 +474,7 @@ export default function GameFlowInfographic() {
       ════════════════════════════════════════════════════════ */}
       <g transform="translate(800,0)">
         <text x="0" y="76" textAnchor="middle" fontSize="13.5" fontWeight="900"
-          fill={INK} letterSpacing="1">4. Vote</text>
+          fill={INK} letterSpacing="1">4. Results</text>
 
         {/* PENGUIN — right flipper extended toward bag */}
         <use href="#pg" transform="translate(-44,182) scale(0.32)"/>

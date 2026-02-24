@@ -130,7 +130,6 @@ export function ScoreTicker({
       style={{
         fontSize: '1.2rem',
         fontWeight: 600,
-        color: resolvedType === 'gain' ? '#22c55e' : '#ef4444',
       }}
       className={showTicker ? (resolvedType === 'gain' ? 'score-tick-up' : 'score-tick-down') : ''}
     >

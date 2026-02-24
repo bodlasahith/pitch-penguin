@@ -13,11 +13,12 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const [roomPhase, setRoomPhase] = useState<string | null>(null)
-  const [roomCode, setRoomCode] = useState('')
+  const [phaseRoomCode, setPhaseRoomCode] = useState('')
   const [showLeavePrompt, setShowLeavePrompt] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const [isTransitioning, setIsTransitioning] = useState(false)
   const lastPathRef = useRef(location.pathname)
+  const prevRoomCodeRef = useRef('')
   const lastReadyPhaseRef = useRef<string | null>(null)
   const transitionPhaseRef = useRef<string | null>(null)
   const transitionEndsAtRef = useRef<number | null>(null)
@@ -26,13 +27,27 @@ export default function AppLayout({ children }: AppLayoutProps) {
     lastPathRef.current = location.pathname
   }, [location.pathname])
 
-  useEffect(() => {
+  const roomCode = useMemo(() => {
     const roomFromPath = location.pathname.startsWith('/lobby/')
       ? location.pathname.split('/')[2] ?? ''
       : ''
     const storedRoom = localStorage.getItem('pp:lastRoom') ?? ''
-    setRoomCode(roomFromPath || storedRoom)
+    return roomFromPath || storedRoom
   }, [location.pathname])
+
+  useEffect(() => {
+    if (roomCode === prevRoomCodeRef.current) {
+      return
+    }
+    prevRoomCodeRef.current = roomCode
+    // Prevent stale phase redirects when switching to a different room.
+    setRoomPhase(null)
+    setPhaseRoomCode('')
+    setIsTransitioning(false)
+    lastReadyPhaseRef.current = null
+    transitionPhaseRef.current = null
+    transitionEndsAtRef.current = null
+  }, [roomCode])
 
   useEffect(() => {
     if (!roomCode) {
@@ -42,12 +57,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
     const socket = getSocket()
     const playerName = localStorage.getItem(`pp:player:${roomCode}`) ?? ''
     const handleRoomState = (payload: { code?: string; status?: string; room?: { phase?: string } }) => {
-      if (payload.code && payload.code !== roomCode) {
+      if (!payload.code || payload.code !== roomCode) {
         return
       }
       const nextPhase = payload.room?.phase ?? payload.status
       if (nextPhase) {
         setRoomPhase(nextPhase)
+        setPhaseRoomCode(roomCode)
       }
     }
 
@@ -66,8 +82,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
   useEffect(() => {
     if (!roomCode) {
       setRoomPhase(null)
+      setPhaseRoomCode('')
       return
     }
+    let cancelled = false
     let intervalId: number | undefined
 
     const loadPhase = async () => {
@@ -76,8 +94,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
         return
       }
       const data = (await response.json()) as { ok: boolean; room?: { phase?: string } }
-      if (data.ok && data.room?.phase) {
+      if (!cancelled && data.ok && data.room?.phase) {
         setRoomPhase(data.room.phase)
+        setPhaseRoomCode(roomCode)
       }
     }
 
@@ -85,6 +104,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     intervalId = window.setInterval(loadPhase, 2000)
 
     return () => {
+      cancelled = true
       if (intervalId) {
         window.clearInterval(intervalId)
       }
@@ -92,7 +112,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }, [roomCode])
 
   const isPublicRoute = useMemo(() => {
-    return location.pathname === '/' || location.pathname.startsWith('/join')
+    return (
+      location.pathname === '/' ||
+      location.pathname.startsWith('/join') ||
+      location.pathname.startsWith('/rules')
+    )
   }, [location.pathname])
 
   const phasePath = useMemo(() => {
@@ -118,7 +142,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   }, [roomPhase])
 
   useEffect(() => {
-    if (!roomCode || !roomPhase || isPublicRoute || !phasePath) {
+    if (!roomCode || !roomPhase || isPublicRoute || !phasePath || phaseRoomCode !== roomCode) {
       if (isTransitioning) {
         setIsTransitioning(false)
       }
@@ -153,11 +177,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
       }, remaining)
       return () => window.clearTimeout(timeoutId)
     }
-  }, [roomCode, roomPhase, phasePath, location.pathname, isPublicRoute, navigate, isTransitioning])
+  }, [roomCode, roomPhase, phaseRoomCode, phasePath, location.pathname, isPublicRoute, navigate, isTransitioning])
 
   useEffect(() => {
     const signalReady = async () => {
-      if (!roomCode || !roomPhase || isPublicRoute || isTransitioning) {
+      if (!roomCode || !roomPhase || isPublicRoute || isTransitioning || phaseRoomCode !== roomCode) {
         return
       }
       if (roomPhase !== 'deal' && roomPhase !== 'pitch' && roomPhase !== 'final-round') {
@@ -189,7 +213,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
 
     void signalReady()
-  }, [roomCode, roomPhase, phasePath, location.pathname, isPublicRoute, isTransitioning])
+  }, [roomCode, roomPhase, phaseRoomCode, phasePath, location.pathname, isPublicRoute, isTransitioning])
 
   const phaseCopy = useMemo(() => {
     switch (roomPhase) {
@@ -208,7 +232,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
     }
   }, [roomPhase])
 
-  const isActiveGame = Boolean(roomCode && roomPhase && roomPhase !== 'lobby')
+  const isActiveGame = Boolean(roomCode && roomPhase && phaseRoomCode === roomCode && roomPhase !== 'lobby')
+  const uiLocked = isTransitioning && !isPublicRoute && roomPhase !== 'lobby'
 
   useEffect(() => {
     if (!isActiveGame) {
@@ -263,9 +288,13 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <div className="app-shell">
-      <TopNav />
-      <main className="page">{children}</main>
-      {isTransitioning && !isPublicRoute && roomPhase !== 'lobby' && (
+      <div style={uiLocked ? { pointerEvents: 'none' } : undefined}>
+        <TopNav currentPhase={phaseRoomCode === roomCode ? roomPhase : null} />
+      </div>
+      <main className="page" style={uiLocked ? { pointerEvents: 'none' } : undefined}>
+        {children}
+      </main>
+      {isTransitioning && !isPublicRoute && phaseRoomCode === roomCode && roomPhase !== 'lobby' && (
         <div className="phase-loading">
           <div className="phase-card">
             <img

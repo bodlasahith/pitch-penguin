@@ -38,6 +38,7 @@ export default function Deal() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle')
   const [selectedOption, setSelectedOption] = useState('')
   const [customProblem, setCustomProblem] = useState('')
+  const [askError, setAskError] = useState('')
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null)
   const [clockOffsetMs, setClockOffsetMs] = useState(0)
   const [allPlayers, setAllPlayers] = useState<Array<{ name: string; mascot?: string }>>([])
@@ -128,16 +129,22 @@ export default function Deal() {
     if (!roomCode || !selectedOption) {
       return
     }
+    setAskError('')
     const askToSubmit =
       selectedOption === '__custom__' ? customProblem.trim() : selectedOption
     if (!askToSubmit) {
       return
     }
-    await apiFetch(`/api/room/${roomCode}/select-ask`, {
+    const response = await apiFetch(`/api/room/${roomCode}/select-ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ask: askToSubmit, playerName })
     })
+    const data = (await response.json()) as { ok: boolean; message?: string }
+    if (!data.ok) {
+      setAskError(data.message ?? 'Could not lock this PROBLEM.')
+      return
+    }
     await load()
   }
 
@@ -145,24 +152,29 @@ export default function Deal() {
     if (!roomCode) {
       return
     }
+    setAskError('')
     const trimmedCustom = customProblem.trim()
     const askToSubmit =
-      selectedOption === '__custom__' && trimmedCustom.length >= 10
+      selectedOption === '__custom__' && trimmedCustom.length > 0
         ? trimmedCustom
         : selectedOption && selectedOption !== '__custom__'
           ? selectedOption
           : askOptions[0]
-    await apiFetch(`/api/room/${roomCode}/select-ask`, {
+    const response = await apiFetch(`/api/room/${roomCode}/select-ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ask: askToSubmit, playerName })
     })
+    const data = (await response.json()) as { ok: boolean; message?: string }
+    if (!data.ok) {
+      setAskError(data.message ?? 'Could not skip timer.')
+      return
+    }
     await load()
   }
 
   const isPenguin = penguin && playerName && penguin.toLowerCase() === playerName.toLowerCase()
-  const currentPlayer = allPlayers.find((player) => player.name.toLowerCase() === playerName.toLowerCase())
-  const canUseCustomProblem = isPenguin && currentPlayer?.mascot === 'walrus'
+  const canUseCustomProblem = isPenguin
   const mustHavesRevealed = !!selectedAsk
   const penguinPlayer = allPlayers.find((player) => player.name === penguin)
   const penguinMascotImg = getMascotImage(penguinPlayer?.mascot)
@@ -197,9 +209,7 @@ export default function Deal() {
           </h1>
           <p>
             {isPenguin ? (
-              canUseCustomProblem
-                ? 'Choose 1 of 3 PROBLEM cards or write your own custom PROBLEM. Other players get 4 CONSTRAINTS.'
-                : 'Choose 1 of 3 PROBLEM cards for this round. Other players get 4 CONSTRAINTS.'
+              'Choose 1 of 3 PROBLEM cards or write your own custom PROBLEM. Other players get 4 CONSTRAINTS.'
             ) : (
               <span>
                 The Penguin{' '}
@@ -303,6 +313,7 @@ export default function Deal() {
                           onChange={(event) => {
                             setCustomProblem(event.target.value)
                             setSelectedOption('__custom__')
+                            setAskError('')
                           }}
                           placeholder="Write your own PROBLEM card..."
                           rows={3}
@@ -319,7 +330,7 @@ export default function Deal() {
                           }}
                         />
                         <span style={{ fontSize: '0.8rem', color: '#666' }}>
-                          10-180 characters
+                          1-180 characters
                         </span>
                       </div>
                     </div>
@@ -330,7 +341,7 @@ export default function Deal() {
                 <button
                   className="button"
                   onClick={handleSelectAsk}
-                  disabled={!selectedOption || (selectedOption === '__custom__' && customProblem.trim().length < 10)}
+                  disabled={!selectedOption || (selectedOption === '__custom__' && customProblem.trim().length === 0)}
                 >
                   Lock This PROBLEM
                 </button>
@@ -338,6 +349,9 @@ export default function Deal() {
                   Skip Timer
                 </button>
               </div>
+              {askError && (
+                <p style={{ marginTop: '10px', color: '#8c2d2a' }}>{askError}</p>
+              )}
             </>
           ) : (
             <div className="card">
@@ -414,9 +428,11 @@ export default function Deal() {
           {surprise ? (
             <>
               <strong>You have a Twist!</strong>
-              <p style={{ margin: '8px 0', fontSize: '0.95rem' }}>{surprise}</p>
+              <p style={{ margin: '8px 0', fontSize: '0.95rem' }}>
+                You have been assigned a TWIST! It will be revealed in the Pitch phase.
+              </p>
               <p style={{ fontSize: '0.85rem', color: '#666', margin: '8px 0' }}>
-                You must use this in your pitch, but you get a $100 bonus if you win!
+                Keep it secret for now. If you win while using it, you get a $100 bonus.
               </p>
             </>
           ) : (

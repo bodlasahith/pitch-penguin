@@ -105,7 +105,7 @@ export default function Rules() {
           <div className="card">
             <strong>2. Vote</strong>
             <span>
-              Penguin(es) rank the pitches best to worst. Player with the most money wins.
+              Penguin(s) rank the pitches best to worst. Player with the most money wins.
             </span>
           </div>
         </div>

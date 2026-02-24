@@ -1394,9 +1394,6 @@ server.post("/api/room/:code/select-ask", async (request) => {
   const gameState = getRoomGameState(room);
   const ask = body.ask?.trim();
   const playerName = body.playerName?.trim() ?? "";
-  const penguinPlayer = room.players.find(
-    (player) => normalizeName(player.name) === normalizeName(gameState.penguin),
-  );
   if (!ask || !playerName || normalizeName(playerName) !== normalizeName(gameState.penguin)) {
     return {
       ok: false,
@@ -1404,18 +1401,11 @@ server.post("/api/room/:code/select-ask", async (request) => {
     };
   }
   const isPresetAsk = gameState.askOptions.includes(ask);
-  const isWalrusCustomAsk = Boolean(penguinPlayer && penguinPlayer.mascot === "walrus");
   if (!isPresetAsk) {
-    if (!isWalrusCustomAsk) {
+    if (ask.length > 180) {
       return {
         ok: false,
-        message: "Ask not available",
-      };
-    }
-    if (ask.length < 10 || ask.length > 180) {
-      return {
-        ok: false,
-        message: "Custom PROBLEM must be between 10 and 180 characters",
+        message: "Custom PROBLEM must be 180 characters or fewer",
       };
     }
   }

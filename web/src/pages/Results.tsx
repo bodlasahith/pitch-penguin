@@ -7,6 +7,7 @@ import { AnimatedMascot } from '../components/AnimatedMascot'
 import type { MascotEvent } from '../hooks/useAnimationTrigger'
 import LeaderboardModal from '../components/LeaderboardModal'
 import { playActionSound, playPhaseSound } from '../utils/soundEffects'
+import { ScoreTicker } from '../components/MoneyAnimation'
 
 type Pitch = {
   id: string
@@ -68,14 +69,36 @@ export default function Results() {
   const [lastWinner, setLastWinner] = useState<LastWinner | null>(null)
   const [playerMascots, setPlayerMascots] = useState<Record<string, string>>({})
   const [finalRoundPitches, setFinalRoundPitches] = useState<Pitch[]>([])
+  const [winnerMustHaveCount, setWinnerMustHaveCount] = useState(0)
   const [truceActivated, setTruceActivated] = useState(false)
   const [roundNoParticipation, setRoundNoParticipation] = useState(false)
+  const [previousPlayerScores, setPreviousPlayerScores] = useState<Record<string, number>>({})
+  const [rankMoveByPlayer, setRankMoveByPlayer] = useState<Record<string, 'up' | 'down'>>({})
+  const [leaderboardAnimationsEnabled, setLeaderboardAnimationsEnabled] = useState(false)
+  const [visibleWinnerBonusCount, setVisibleWinnerBonusCount] = useState(0)
+  const [showWinnerScoreTicker, setShowWinnerScoreTicker] = useState(false)
   const mascotAnimationRefs = useRef<Record<string, (event: MascotEvent) => void>>({})
   const animationCycleKeyRef = useRef('')
   const endGameSoundKeyRef = useRef('')
+  const rankMoveClearTimeoutRef = useRef<number | null>(null)
 
   const roomCode = code ?? localStorage.getItem('pp:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`pp:player:${roomCode}`) ?? '' : ''
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setLeaderboardAnimationsEnabled(true)
+    }, 3200)
+    return () => window.clearTimeout(timer)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (rankMoveClearTimeoutRef.current) {
+        window.clearTimeout(rankMoveClearTimeoutRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const load = async () => {
@@ -86,7 +109,53 @@ export default function Results() {
 
       const data = (await response.json()) as GameResponse
       if (data.ok && data.room) {
-        setPlayerScores(data.room.playerScores ?? (data as { playerScores?: Record<string, number> }).playerScores ?? {})
+        const nextScores =
+          data.room.playerScores ??
+          (data as { playerScores?: Record<string, number> }).playerScores ??
+          {}
+        setPlayerScores((prevScores) => {
+          const hasPrevious = Object.keys(prevScores).length > 0
+          if (!leaderboardAnimationsEnabled) {
+            // Keep ticker static until transition overlay window is over.
+            setPreviousPlayerScores(nextScores)
+            setRankMoveByPlayer({})
+            return nextScores
+          }
+
+          setPreviousPlayerScores(hasPrevious ? prevScores : nextScores)
+
+          if (!hasPrevious) {
+            setRankMoveByPlayer({})
+            return nextScores
+          }
+
+          const previousOrder = Object.entries(prevScores)
+            .sort(([, a], [, b]) => b - a)
+            .map(([player]) => player)
+          const nextOrder = Object.entries(nextScores)
+            .sort(([, a], [, b]) => b - a)
+            .map(([player]) => player)
+
+          const previousIndexByPlayer = new Map(previousOrder.map((player, index) => [player, index]))
+          const nextMoves: Record<string, 'up' | 'down'> = {}
+          nextOrder.forEach((player, nextIndex) => {
+            const previousIndex = previousIndexByPlayer.get(player)
+            if (previousIndex === undefined || previousIndex === nextIndex) {
+              return
+            }
+            nextMoves[player] = nextIndex < previousIndex ? 'up' : 'down'
+          })
+
+          setRankMoveByPlayer(nextMoves)
+          if (rankMoveClearTimeoutRef.current) {
+            window.clearTimeout(rankMoveClearTimeoutRef.current)
+          }
+          rankMoveClearTimeoutRef.current = window.setTimeout(() => {
+            setRankMoveByPlayer({})
+          }, 1200)
+
+          return nextScores
+        })
         setGameWinner(data.room.gameWinner)
         setGameWinners(data.room.gameWinners ?? [])
         const hasFinalRound = (data.room.finalRoundPlayers?.length ?? 0) > 0
@@ -96,18 +165,32 @@ export default function Results() {
         setTruceActivated(data.room.truceActivated ?? false)
         setRoundNoParticipation(data.room.roundNoParticipation ?? false)
         
-        // Fetch final round pitches if there was a final round and game is over
-        if (hasFinalRound && (data.room.gameWinner || data.room.gameWinners) && data.room.finalRoundPlayers) {
+        const needsPitches =
+          Boolean(data.room.lastRoundWinner?.pitchId) ||
+          (hasFinalRound && Boolean(data.room.finalRoundPlayers))
+        if (needsPitches) {
           const pitchesResponse = await apiFetch(`/api/room/${roomCode}/pitches`)
           if (pitchesResponse.ok) {
             const pitchData = (await pitchesResponse.json()) as { ok: boolean; pitches: Pitch[] }
             if (pitchData.ok) {
-              const frPitches = pitchData.pitches.filter(p => 
-                data.room?.finalRoundPlayers?.includes(p.player)
-              )
-              setFinalRoundPitches(frPitches)
+              const winnerPitch = data.room.lastRoundWinner?.pitchId
+                ? pitchData.pitches.find((pitch) => pitch.id === data.room?.lastRoundWinner?.pitchId)
+                : null
+              setWinnerMustHaveCount(winnerPitch?.usedMustHaves?.length ?? 0)
+
+              if (hasFinalRound && (data.room.gameWinner || data.room.gameWinners) && data.room.finalRoundPlayers) {
+                const frPitches = pitchData.pitches.filter((pitch) =>
+                  data.room?.finalRoundPlayers?.includes(pitch.player)
+                )
+                setFinalRoundPitches(frPitches)
+              } else {
+                setFinalRoundPitches([])
+              }
             }
           }
+        } else {
+          setWinnerMustHaveCount(0)
+          setFinalRoundPitches([])
         }
         
         // Check if phase has changed to final-round (all players should redirect)
@@ -150,7 +233,7 @@ export default function Results() {
     void load()
     const interval = window.setInterval(load, 2000)
     return () => window.clearInterval(interval)
-  }, [roomCode, playerName, navigate])
+  }, [roomCode, playerName, navigate, leaderboardAnimationsEnabled])
 
   useEffect(() => {
     if (!gameWinner && gameWinners.length === 0) {
@@ -238,6 +321,62 @@ export default function Results() {
     },
     null
   )
+  const winnerExtraConstraintCount = Math.max(0, winnerMustHaveCount - 1)
+  const winnerExtraConstraintBonusDollars = winnerExtraConstraintCount * 25
+  const winnerCurrentBalanceDollars = lastWinner?.player
+    ? Math.round((playerScores[lastWinner.player] ?? 0) * 100)
+    : null
+  const winnerPreviousBalanceDollars =
+    lastWinner?.player && winnerCurrentBalanceDollars !== null
+      ? Math.max(0, Math.round(((playerScores[lastWinner.player] ?? 0) - lastWinner.pointsAwarded) * 100))
+      : null
+  const winnerTickerPreviousDollars =
+    leaderboardAnimationsEnabled && winnerPreviousBalanceDollars !== null
+      ? winnerPreviousBalanceDollars
+      : winnerCurrentBalanceDollars
+  const winnerBonusItems = useMemo(() => {
+    const items: string[] = []
+    if (lastWinner?.penguinSurpriseWinner) {
+      items.push('⭐ TWIST bonus (+$100)')
+    }
+    if (winnerExtraConstraintCount > 0) {
+      items.push(
+        `✅ CONSTRAINT bonus (+$${winnerExtraConstraintBonusDollars}) for ${winnerExtraConstraintCount} extra card${winnerExtraConstraintCount === 1 ? '' : 's'}`
+      )
+    }
+    return items
+  }, [
+    lastWinner?.penguinSurpriseWinner,
+    winnerExtraConstraintCount,
+    winnerExtraConstraintBonusDollars
+  ])
+
+  useEffect(() => {
+    if (!leaderboardAnimationsEnabled || !lastWinner?.player) {
+      setVisibleWinnerBonusCount(0)
+      setShowWinnerScoreTicker(false)
+      return
+    }
+
+    setVisibleWinnerBonusCount(0)
+    setShowWinnerScoreTicker(false)
+    const timers: number[] = []
+    const stepMs = 420
+    winnerBonusItems.forEach((_, index) => {
+      const timer = window.setTimeout(() => {
+        setVisibleWinnerBonusCount(index + 1)
+      }, (index + 1) * stepMs)
+      timers.push(timer)
+    })
+    const tickerTimer = window.setTimeout(() => {
+      setShowWinnerScoreTicker(true)
+    }, winnerBonusItems.length * stepMs + 220)
+    timers.push(tickerTimer)
+
+    return () => {
+      timers.forEach((timer) => window.clearTimeout(timer))
+    }
+  }, [leaderboardAnimationsEnabled, lastWinner?.player, winnerBonusItems])
 
   const mascotBadgeStyle: CSSProperties = {
     width: '34px',
@@ -474,8 +613,32 @@ export default function Results() {
           {champion && !lastWinner && !roundNoParticipation && (
             <p style={{ marginTop: '8px' }}>with ${champion[1] * 100}</p>
           )}
-          {lastWinner?.penguinSurpriseWinner && (
-            <p style={{ marginTop: '8px', color: '#d4a574' }}>⭐ TWIST bonus (+$100)</p>
+          {winnerBonusItems.map((bonusText, index) => {
+            const visible = index < visibleWinnerBonusCount
+            return (
+              <p
+                key={bonusText}
+                style={{
+                  marginTop: '8px',
+                  color: bonusText.includes('TWIST') ? '#d4a574' : '#2d7c2d',
+                  opacity: visible ? 1 : 0,
+                  transform: visible ? 'translateY(0)' : 'translateY(6px)',
+                  transition: 'opacity 320ms ease, transform 320ms ease'
+                }}
+              >
+                {bonusText}
+              </p>
+            )
+          })}
+          {showWinnerScoreTicker && lastWinner?.player && winnerCurrentBalanceDollars !== null && winnerPreviousBalanceDollars !== null && (
+            <div style={{ marginTop: '10px' }}>
+              <span style={{ fontSize: '0.9rem', color: '#6b6056' }}>Winner balance: </span>
+              <ScoreTicker
+                previous={winnerTickerPreviousDollars ?? winnerCurrentBalanceDollars}
+                current={winnerCurrentBalanceDollars}
+                type="gain"
+              />
+            </div>
           )}
         </div>
 
@@ -490,11 +653,28 @@ export default function Results() {
                   const maxScore = Math.max(...Object.values(playerScores ?? {}))
                   const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0
                   const isWinner = gameWinner === player || gameWinners.includes(player)
-                  
+
                   const getMedalEmoji = (placement: number) => {
-                    if (placement === 0) return '🥇'
-                    if (placement === 1) return '🥈'
-                    if (placement === 2) return '🥉'
+                    // Find the actual rank considering ties
+                    const sortedScores = Object.entries(playerScores ?? {})
+                      .sort(([, a], [, b]) => b - a)
+                    
+                    let actualRank = 0
+                    let currentScore = maxScore
+                    
+                    for (let i = 0; i < sortedScores.length; i++) {
+                      if (sortedScores[i][1] !== currentScore) {
+                        actualRank = i
+                        currentScore = sortedScores[i][1]
+                      }
+                      if (i === placement) {
+                        break
+                      }
+                    }
+                    
+                    if (actualRank === 0) return '🥇'
+                    if (actualRank === 1) return '🥈'
+                    if (actualRank === 2) return '🥉'
                     return null
                   }
                   
@@ -543,10 +723,18 @@ export default function Results() {
                           <span style={{ fontWeight: isWinner ? 700 : 600 }}>
                             {player} {isWinner && '👑'}
                           </span>
+                          {rankMoveByPlayer[player] === 'up' && (
+                            <span className="badge score-move-up">↑ Up</span>
+                          )}
+                          {rankMoveByPlayer[player] === 'down' && (
+                            <span className="badge score-move-down">↓ Down</span>
+                          )}
                         </div>
-                        <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                          ${score * 100}
-                        </span>
+                        <ScoreTicker
+                          previous={Math.round((previousPlayerScores[player] ?? score) * 100)}
+                          current={Math.round(score * 100)}
+                          type={score >= (previousPlayerScores[player] ?? score) ? 'gain' : 'loss'}
+                        />
                       </div>
                       <div
                         style={{
@@ -583,6 +771,13 @@ export default function Results() {
               .map(([player, score], index) => (
                 <div
                   key={player}
+                  className={
+                    rankMoveByPlayer[player] === 'up'
+                      ? 'leaderboard-row-up'
+                      : rankMoveByPlayer[player] === 'down'
+                        ? 'leaderboard-row-down'
+                        : ''
+                  }
                   style={{
                     backgroundColor: getMascotColor(playerMascots[player]),
                     padding: '12px',
@@ -628,7 +823,11 @@ export default function Results() {
                       </span>
                     </div>
                   </div>
-                  <div style={{ fontWeight: 700 }}>${score * 100}</div>
+                  <ScoreTicker
+                    previous={Math.round((previousPlayerScores[player] ?? score) * 100)}
+                    current={Math.round(score * 100)}
+                    type={score >= (previousPlayerScores[player] ?? score) ? 'gain' : 'loss'}
+                  />
                 </div>
               ))}
             </div>
@@ -734,12 +933,11 @@ export default function Results() {
           </p>
         ) : roundNoParticipation ? (
           <p>
-            No one participated this round. Start the next round to continue the game.
+            No one participated this round. Waiting for the host to start the next round to continue the game.
           </p>
         ) : (
           <p>
-            Prepare for the next round! A new Penguin will be chosen, fresh PROBLEM cards will be
-            dealt, and you'll compete again.
+            Prepare for the next round! A new Penguin will be chosen, fresh PROBLEM cards will be dealt, and you'll compete again.
           </p>
         )}
 

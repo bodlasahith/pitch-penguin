@@ -52,6 +52,8 @@ type GameResponse = {
 }
 
 export default function Lobby() {
+  const DEFAULT_DEAL_TIMER_SECONDS = 30
+  const DEFAULT_PITCH_TIMER_SECONDS = 90
   const navigate = useNavigate()
   const { code } = useParams()
   const [players, setPlayers] = useState<RoomResponse['players']>([])
@@ -66,8 +68,8 @@ export default function Lobby() {
     'idle'
   )
   const [robotVoiceEnabled, setRobotVoiceEnabled] = useState(true)
-  const [dealTimerSeconds, setDealTimerSeconds] = useState(30)
-  const [pitchTimerSeconds, setPitchTimerSeconds] = useState(90)
+  const [dealTimerSeconds, setDealTimerSeconds] = useState(DEFAULT_DEAL_TIMER_SECONDS)
+  const [pitchTimerSeconds, setPitchTimerSeconds] = useState(DEFAULT_PITCH_TIMER_SECONDS)
   const [phase, setPhase] = useState('lobby')
   const [hostName, setHostName] = useState('')
   const [hostChanged, setHostChanged] = useState(false)
@@ -315,6 +317,36 @@ export default function Lobby() {
     })
   }
 
+  const handleRestoreDefaults = async () => {
+    if (!code || !isHost) {
+      return
+    }
+
+    const playerName = localStorage.getItem(`pp:player:${code}`) ?? ''
+    setDealTimerSeconds(DEFAULT_DEAL_TIMER_SECONDS)
+    setPitchTimerSeconds(DEFAULT_PITCH_TIMER_SECONDS)
+    setRobotVoiceEnabled(true)
+    setSfxEnabled(true)
+    setSoundEffectsEnabled(true)
+
+    await Promise.all([
+      apiFetch(`/api/room/${code}/timers`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerName,
+          dealTimerSeconds: DEFAULT_DEAL_TIMER_SECONDS,
+          pitchTimerSeconds: DEFAULT_PITCH_TIMER_SECONDS
+        })
+      }),
+      apiFetch(`/api/room/${code}/toggle-voice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: true })
+      })
+    ])
+  }
+
   const handleMascotSelect = async (mascot: string) => {
     if (!code) {
       return
@@ -430,7 +462,6 @@ export default function Lobby() {
         <div className="panel">
           <h3>Room code</h3>
           <div className="timer">{code ?? 'TBD'}</div>
-          <p style={{ marginTop: '8px' }}>Mode: Online + Couch Party</p>
           <div className="footer-actions" style={{ marginTop: '12px' }}>
             <button className="button secondary" onClick={handleCopy}>
               {copyStatus === 'copied' ? 'Copied' : 'Copy code'}
@@ -636,6 +667,13 @@ export default function Lobby() {
               </button>
             </li>
           </ul>
+          {isHost && (
+            <div style={{ marginTop: '14px' }}>
+              <button className="button secondary" onClick={handleRestoreDefaults}>
+                Restore defaults
+              </button>
+            </div>
+          )}
         </div>
         <div className="panel">
           <h3>Start the Game</h3>

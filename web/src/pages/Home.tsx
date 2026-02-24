@@ -94,7 +94,7 @@ export default function Home() {
           <h1>Bring the pitch night online.</h1>
           <p>
             Pitch Penguin is a entrepreneurship-themed social pitch party
-            where: <br></br> <strong>PROBLEM</strong> cards present a problem, <br></br> <strong>CONSTRAINTS</strong> are quirky requirements, <br></br> and <strong>TWISTs</strong> throw a curveball.
+            where: <br></br> <strong>PROBLEM</strong> cards present a problem, <br></br> <strong>CONSTRAINTs</strong> are quirky requirements, <br></br> and <strong>TWISTs</strong> throw a curveball.
             <br></br>Penguins may invest in ideas based on creativity, effort,
             entertainment, or just pure chaos.
           </p>
@@ -138,13 +138,13 @@ export default function Home() {
               onClick={handleCreateRoom}
               disabled={roomStatus === 'loading'}
             >
-              Create room
+              Create new room
             </button>
             <button
               className="button secondary"
               onClick={() => navigate('/join')}
             >
-              Join room
+              Join existing room
             </button>
           </div>
           {(roomStatus === 'error' || roomError) && (
