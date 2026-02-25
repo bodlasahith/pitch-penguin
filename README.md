@@ -27,7 +27,7 @@ This repository is a Node monorepo with:
 Pitch Penguin game flow:
 1. Host creates a room and shares code.
 2. Players join lobby and choose mascots.
-3. Round starts with a PROBLEM + CONSTRAINT cards (+ optional TWIST).
+3. Round starts with a 💡 PROBLEM + 🧩 CONSTRAINT cards (+ optional ⭐️ TWIST).
 4. Players submit pitches (optionally with AI assistance and voice playback).
 5. Penguin/judges evaluate and score.
 6. Rounds continue until final round and winner resolution.

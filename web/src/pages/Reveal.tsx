@@ -632,10 +632,10 @@ export default function Reveal() {
       )}
 
       <section className="panel">
-        <h3>TWIST</h3>
+        <h3>⭐ TWIST</h3>
         {penguinSurprisePlayer && surpriseLabel ? (
           <p>
-            ⭐ {penguinSurprisePlayer}: {surpriseLabel}
+            {penguinSurprisePlayer}: {surpriseLabel}
           </p>
         ) : (
           <p>No TWIST assigned this round.</p>

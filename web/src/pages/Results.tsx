@@ -892,7 +892,7 @@ export default function Results() {
                     </div>
                     {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                       <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#6b6056' }}>
-                        <strong>CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
+                        <strong>🧩 CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
                       </div>
                     )}
                     {pitch.sketchData && (
@@ -937,7 +937,7 @@ export default function Results() {
           </p>
         ) : (
           <p>
-            Prepare for the next round! A new Penguin will be chosen, fresh PROBLEM cards will be dealt, and you'll compete again.
+            Prepare for the next round! A new Penguin will be chosen, fresh cards will be dealt, and you'll compete again.
           </p>
         )}
 

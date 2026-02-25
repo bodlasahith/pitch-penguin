@@ -361,17 +361,17 @@ export default function GameFlowInfographic({ currentPhase = null }: GameFlowInf
         <g transform="translate(-52,234) rotate(-16)">
           <use href="#card"/>
           <text x="0" y="-7" textAnchor="middle" fontSize="5.8" fontWeight="900"
-            fill={INK} stroke="none">PROBLEM</text>
+            fill={INK} stroke="none">💡 PROBLEM</text>
         </g>
         <g transform="translate(0,232)">
           <use href="#card"/>
           <text x="0" y="-7" textAnchor="middle" fontSize="4.7" fontWeight="900"
-            fill={INK} stroke="none">CONSTRAINT</text>
+            fill={INK} stroke="none">🧩 CONSTRAINT</text>
         </g>
         <g transform="translate(52,234) rotate(16)">
           <use href="#card"/>
           <text x="0" y="-7" textAnchor="middle" fontSize="5.8" fontWeight="900"
-            fill={INK} stroke="none">TWIST</text>
+            fill={INK} stroke="none">⭐ TWIST</text>
         </g>
       </g>
 

@@ -20,7 +20,7 @@ export default function Rules() {
     },
     {
       title: 'Scoring and bonuses',
-      description: 'Big swings get big money, especially with extra constraints.',
+      description: 'Big swings get big money, especially with extra 🧩 CONSTRAINTS.',
       rules: rulesSource.slice(5, 8)
     },
     {
@@ -96,7 +96,7 @@ export default function Rules() {
         <div className="grid">
           <div className="card">
             <strong>1. Deal cards</strong>
-            <span>PROBLEM + CONSTRAINTS + TWIST.</span>
+            <span>💡 PROBLEM + 🧩 CONSTRAINTS + ⭐ TWIST.</span>
           </div>
           <div className="card">
             <strong>2. Write pitch</strong>
@@ -116,13 +116,13 @@ export default function Rules() {
           <div className="card">
             <strong>Case A: Top player pitch-off</strong>
             <span>
-              Auto assigned PROBLEM + CONSTRAINTS. Top 2-7 players pitch head-to-head. Penguin(s) rank the pitches best to worst. Player with the most money wins.
+              Auto assigned 💡 PROBLEM + 🧩 CONSTRAINTS. Top 2-7 players pitch head-to-head. Penguin(s) rank the pitches best to worst. Player with the most money wins.
             </span>
           </div>
           <div className="card">
             <strong>Case B: Top player immunity</strong>
             <span>
-              Auto assigned PROBLEM + CONSTRAINTS. Top player gets immunity and becomes Penguin. Everyone else pitches to compete for ranks 2-7. 
+              Auto assigned 💡 PROBLEM + 🧩 CONSTRAINTS. Top player gets immunity and becomes Penguin. Everyone else pitches to compete for ranks 2-7. 
               Penguin ranks the pitches best to worst. Players may rise or fall,
               but the penguin stays safe on top.
             </span>

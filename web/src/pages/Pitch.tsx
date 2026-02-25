@@ -216,8 +216,7 @@ export default function Pitch() {
       return
     }
     if (selectedMustHaves.length === 0) {
-      setAiWarning('⚠️ No CONSTRAINTS selected. Using AI will mark you as an AI user—other players can challenge this.')
-      console.log('AI generation warning: no CONSTRAINTS selected')
+      setAiWarning('⚠️ No 🧩 CONSTRAINTS selected. Using AI will mark you as an AI user—other players can challenge this.')
       return
     }
     
@@ -586,9 +585,9 @@ export default function Pitch() {
 
       <section className="split">
         <div className="panel">
-          <h3>The PROBLEM</h3>
+          <h3>The 💡 PROBLEM</h3>
           <div className="card">
-            <strong>"{selectedAsk ?? 'Waiting for PROBLEM...'}"</strong>
+            <strong>"{selectedAsk ?? 'Waiting for 💡 PROBLEM...'}"</strong>
             <span>Answer this problem with your pitch.</span>
           </div>
         </div>
@@ -651,7 +650,7 @@ export default function Pitch() {
             />
             <textarea
               className="input textarea"
-              placeholder="Sell the dream. Highlight the CONSTRAINTS and your solution."
+              placeholder="Sell the dream. Highlight the 🧩 CONSTRAINTS and your solution."
               value={pitchText}
               onChange={(event) => setPitchText(event.target.value)}
               disabled={isLocked}
@@ -663,7 +662,7 @@ export default function Pitch() {
               </div>
             )}
             <div style={{ marginTop: '14px' }}>
-              <strong>Select CONSTRAINTS (use at least 1 of 4)</strong>
+              <strong>Select 🧩 CONSTRAINTS (use at least 1 of 4)</strong>
               <ul className="list" style={{ marginTop: '8px' }}>
                 {mustHaves.map((card) => (
                   <li key={card}>
@@ -752,9 +751,9 @@ export default function Pitch() {
 
       {!isPenguin && (
         <section className="panel">
-          <h3>Running Out of Time?</h3>
+          <h3>AI Pitch Generator</h3>
           <p>
-            Use AI to generate a quick pitch that matches the PROBLEM and your CONSTRAINTS. 
+            Running out of time? Use 🤖 AI to generate a quick pitch that matches the 💡 PROBLEM and your 🧩 CONSTRAINTS. 
             <strong> Cost: $50</strong>. Note: Other players can challenge AI-generated pitches. 
             If challenged correctly, you lose $100.
           </p>
@@ -767,7 +766,7 @@ export default function Pitch() {
               <span>"{generatedPitch}"</span>
               <div className="footer-actions" style={{ marginTop: '12px' }}>
                 <button className="button primary-cta" onClick={handleUseGeneratedPitch} disabled={isLocked}>
-                  Use This
+                  Call the AI Assistant
                 </button>
               </div>
             </div>

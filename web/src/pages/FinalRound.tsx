@@ -546,7 +546,6 @@ export default function FinalRound() {
     setSubmitError(null)
 
     try {
-      console.log('Submitting ranking:', { playerName, rankedPitchIds })
       const response = await apiFetch(`/api/room/${roomCode}/tiebreaker-ranking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -612,7 +611,6 @@ export default function FinalRound() {
   // Initialize ranking order when pitches load or phase changes to ranking
   useEffect(() => {
     if (!isPitcher && phase === 'ranking' && pitches.length > 0 && rankedPitchIds.length === 0 && !submitted) {
-      console.log('Initializing ranking order for', pitches.length, 'pitches')
       setRankedPitchIds(pitches.map((p) => p.id))
     }
   }, [isPitcher, phase, pitches, rankedPitchIds.length, submitted])
@@ -760,7 +758,7 @@ export default function FinalRound() {
         <>
           <section className="split">
             <div className="panel">
-              <h3>The PROBLEM</h3>
+              <h3>The 💡 PROBLEM</h3>
               <div className="card">
                 <strong>"{selectedAsk ?? 'Loading...'}"</strong>
                 <span>Answer this problem with your pitch.</span>
@@ -846,7 +844,7 @@ export default function FinalRound() {
                 </div>
               )}
               <div style={{ marginTop: '14px' }}>
-                <strong>Select CONSTRAINTS (choose at least 2 of 3)</strong>
+                <strong>Select 🧩 CONSTRAINTS (choose at least 2 of 3)</strong>
                 <ul className="list" style={{ marginTop: '8px' }}>
                   {mustHaves.map((card) => (
                     <li key={card}>
@@ -1019,7 +1017,7 @@ export default function FinalRound() {
                     )}
                     {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                       <div style={{ marginTop: '8px' }}>
-                        <strong>CONSTRAINTS Used:</strong>
+                        <strong>🧩 CONSTRAINTS Used:</strong>
                         <ul style={{ margin: '4px 0' }}>
                           {pitch.usedMustHaves.map((mh) => (
                             <li key={mh}>{mh}</li>
@@ -1056,7 +1054,7 @@ export default function FinalRound() {
                     <div style={{ fontSize: '0.9rem', color: '#666' }}>{pitch.summary}</div>
                     {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                       <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#6b6056' }}>
-                        <strong>CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
+                        <strong>🧩 CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
                       </div>
                     )}
                     {pitch.sketchData && (
@@ -1174,7 +1172,7 @@ export default function FinalRound() {
                 )}
                 {pitch.usedMustHaves && pitch.usedMustHaves.length > 0 && (
                   <div style={{ marginTop: '6px', fontSize: '0.85rem', color: '#6b6056' }}>
-                    <strong>CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
+                    <strong>🧩 CONSTRAINTS:</strong> {pitch.usedMustHaves.join(', ')}
                   </div>
                 )}
                 {pitch.sketchData && (

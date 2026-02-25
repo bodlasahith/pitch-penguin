@@ -253,7 +253,8 @@ const getNestedString = (obj: Record<string, unknown>, path: string[]): string |
 };
 
 const normalizePitchTitle = (title?: string | null) => (title ?? "").trim().toLowerCase();
-const isUntitledPitchTitle = (title?: string | null) => normalizePitchTitle(title) === "untitled pitch";
+const isUntitledPitchTitle = (title?: string | null) =>
+  normalizePitchTitle(title) === "untitled pitch";
 const stripEmojiForTts = (text: string) =>
   text
     .replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu, "")
@@ -324,11 +325,14 @@ const generateDeapiTts = async (
 
   let resultUrl: string | null = null;
   for (let attempt = 0; attempt < DEAPI_MAX_POLL_ATTEMPTS; attempt += 1) {
-    const statusResponse = await fetch(`${DEAPI_BASE_URL}/api/v1/client/request-status/${requestId}`, {
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
+    const statusResponse = await fetch(
+      `${DEAPI_BASE_URL}/api/v1/client/request-status/${requestId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
       },
-    });
+    );
     if (!statusResponse.ok) {
       const statusPayload = await parseJsonSafely(statusResponse);
       const statusMessage =
@@ -455,7 +459,8 @@ const initializeGameState = (room: Room): RoomGameState => {
   };
 };
 
-const isValidDealTimerSeconds = (value: number) => Number.isInteger(value) && value >= 15 && value <= 45;
+const isValidDealTimerSeconds = (value: number) =>
+  Number.isInteger(value) && value >= 15 && value <= 45;
 const isValidPitchTimerSeconds = (value: number) =>
   Number.isInteger(value) && value >= 60 && value <= 300 && value % 30 === 0;
 
@@ -934,7 +939,8 @@ const startFinalRound = (room: Room, gameState: RoomGameState) => {
 
   // Clear previous round data
   // Pick ONE ask from the non-repeating queue (no penguin selection in final round).
-  const randomAsk = drawCardsFromQueue(gameState.askDeckQueue, ASK_DECK, 1)[0] ?? "Create something amazing!";
+  const randomAsk =
+    drawCardsFromQueue(gameState.askDeckQueue, ASK_DECK, 1)[0] ?? "Create something amazing!";
   gameState.askOptions = [randomAsk]; // Only one option
   gameState.selectedAsk = randomAsk; // Auto-selected
   gameState.truceActivated = false;
@@ -1425,7 +1431,11 @@ server.post("/api/room/:code/select-ask", async (request) => {
 
 server.post("/api/room/:code/timers", async (request) => {
   const { code } = request.params as { code: string };
-  const body = request.body as { playerName?: string; dealTimerSeconds?: number; pitchTimerSeconds?: number };
+  const body = request.body as {
+    playerName?: string;
+    dealTimerSeconds?: number;
+    pitchTimerSeconds?: number;
+  };
   const room = rooms.get(code);
   if (!room) {
     return {
@@ -1621,7 +1631,8 @@ server.post("/api/room/:code/pitch", async (request) => {
   const minMustHaves = isFinalRound ? 2 : 1;
   const hasMustHaves = usedMustHavesCount >= minMustHaves;
 
-  const isUntitledNoPitch = (!trimmedSummary && !trimmedTitle) || (!trimmedSummary && isUntitledPitchTitle(trimmedTitle));
+  const isUntitledNoPitch =
+    (!trimmedSummary && !trimmedTitle) || (!trimmedSummary && isUntitledPitchTitle(trimmedTitle));
   const isEmpty = !trimmedTitle || !trimmedSummary || isUntitledNoPitch;
   const isValid = hasMustHaves && !isEmpty;
   const isDisqualified = !isValid;
@@ -1747,12 +1758,12 @@ server.post("/api/room/:code/generate-pitch", async (request) => {
     const mustHavesText = mustHaves.join(", ");
     const surpriseText = surprise ? `Also incorporate this element: "${surprise}".` : "";
 
-    const prompt = `Create a short, punchy elevator pitch (2-3 sentences max) that:
-1. Answers this problem/question: "${ask}"
-2. Includes these required elements: ${mustHavesText}
-${surpriseText}
+    const prompt = `Create a short, punchy elevator pitch (6-8 sentences) that:
+      1. Answers this problem/question: "${ask}"
+      2. Includes these required elements: ${mustHavesText}
+      ${surpriseText}
 
-Keep it exciting, founder-friendly, and ready to be read aloud. No fluff or disclaimers.`;
+      Keep it exciting, founder-friendly, creative, fun, and ready to be read aloud. No fluff or disclaimers.`;
 
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",

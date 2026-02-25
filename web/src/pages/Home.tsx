@@ -59,8 +59,8 @@ export default function Home() {
           <h1>Bring the pitch night online.</h1>
           <p className="home-hero-hook">Turn wild ideas into competitive chaos.</p>
           <p>
-            Every round drops a <strong>PROBLEM</strong>, weird
-            <strong> CONSTRAINTS</strong>, and a chaotic <strong>TWIST</strong>.
+            Every round drops a <strong>💡 PROBLEM</strong>, weird
+            <strong> 🧩 CONSTRAINTS</strong>, and a surprise <strong>⭐ TWIST</strong>.
             <br></br>Penguins may invest in ideas based on creativity, effort, entertainment, or just pure chaos.
             <br></br>Pitch, vote, and invest until one founder waddles away rich.
           </p>

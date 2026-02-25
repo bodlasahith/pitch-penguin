@@ -218,7 +218,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const phaseCopy = useMemo(() => {
     switch (roomPhase) {
       case 'deal':
-        return { title: 'Up next: The Deal', subtitle: 'Shuffling PROBLEM cards and TWIST cards.' }
+        return { title: 'Up next: The Deal', subtitle: 'Shuffling 💡 PROBLEM cards and ⭐ TWIST cards.' }
       case 'pitch':
         return { title: 'Up next: Pitch Lab', subtitle: 'Deal locked. Time to build your pitch.' }
       case 'reveal':

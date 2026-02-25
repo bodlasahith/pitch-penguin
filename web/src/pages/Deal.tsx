@@ -142,7 +142,7 @@ export default function Deal() {
     })
     const data = (await response.json()) as { ok: boolean; message?: string }
     if (!data.ok) {
-      setAskError(data.message ?? 'Could not lock this PROBLEM.')
+      setAskError(data.message ?? 'Could not lock this 💡 PROBLEM.')
       return
     }
     await load()
@@ -209,7 +209,7 @@ export default function Deal() {
           </h1>
           <p>
             {isPenguin ? (
-              'Choose 1 of 3 PROBLEM cards or write your own custom PROBLEM. Other players get 4 CONSTRAINTS.'
+              'Choose 1 of 3 💡 PROBLEM cards or write your own custom 💡 PROBLEM. Other players get 4 🧩 CONSTRAINTS.'
             ) : (
               <span>
                 The Penguin{' '}
@@ -230,7 +230,7 @@ export default function Deal() {
                   )}
                   <span>{penguin}</span>
                 </span>{' '}
-                is selecting the PROBLEM card. Your CONSTRAINTS will be revealed next.
+                is selecting the 💡 PROBLEM card. Your 🧩 CONSTRAINTS will be revealed next.
               </span>
             )}
           </p>
@@ -246,7 +246,7 @@ export default function Deal() {
 
       <section className="split">
         <div className="panel">
-          <h3>PROBLEM Cards (Pick 1)</h3>
+          <h3>💡 PROBLEM Cards (Pick 1)</h3>
           {isPenguin ? (
             <>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -307,7 +307,7 @@ export default function Deal() {
                         style={{ marginRight: '12px', marginTop: '2px' }}
                       />
                       <div style={{ width: '100%' }}>
-                        <strong>Custom PROBLEM (Walrus)</strong>
+                        <strong>Custom 💡 PROBLEM (Penguin)</strong>
                         <textarea
                           value={customProblem}
                           onChange={(event) => {
@@ -315,7 +315,7 @@ export default function Deal() {
                             setSelectedOption('__custom__')
                             setAskError('')
                           }}
-                          placeholder="Write your own PROBLEM card..."
+                          placeholder="Write your own 💡 PROBLEM card..."
                           rows={3}
                           maxLength={180}
                           style={{
@@ -365,8 +365,8 @@ export default function Deal() {
                 </>
               ) : (
                 <>
-                  <strong>Waiting for PROBLEM...</strong>
-                  <span>The Penguin is reviewing the 3 PROBLEM options.</span>
+                  <strong>Waiting for 💡 PROBLEM...</strong>
+                  <span>The Penguin is reviewing the 3 💡 PROBLEM options.</span>
                 </>
               )}
             </div>
@@ -375,7 +375,7 @@ export default function Deal() {
 
         {!isPenguin && (
           <div className="panel">
-            <h3>Your CONSTRAINTS</h3>
+            <h3>Your 🧩 CONSTRAINTS</h3>
             <p style={{ marginTop: '6px', fontSize: '0.9rem', color: '#666' }}>
               Use at least 1 in your pitch answer.
             </p>
