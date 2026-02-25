@@ -82,7 +82,7 @@ export default function Home() {
             onChange={(event) => setHostName(event.target.value)}
             style={{ marginTop: '10px' }}
           />
-          <div className="footer-actions" style={{ marginTop: '16px' }}>
+          <div className="footer-actions cta-stack" style={{ marginTop: '16px' }}>
             <button
               className="button primary-cta"
               onClick={handleCreateRoom}
@@ -119,7 +119,7 @@ export default function Home() {
         <div className="feature-grid">
           <div className="feature-card">
             <div className="feature-tag">Visual board</div>
-            <p>Add a doodle or logo sketch while you pitch, Pictionary-style. Make sure to <span title="Keep it simple, stupid"><strong>KiSS</strong></span> so your idea lands fast!</p>
+            <p>Add a doodle or logo sketch while you pitch, Pictionary-style. Make sure to <span className="kiss-tooltip-wrapper"><strong>KiSS</strong><span className="kiss-tooltip">Keep it simple, stupid!</span></span> so your idea lands fast!</p>
           </div>
           <div className="feature-card">
             <div className="feature-tag">Robot reader</div>

@@ -1,14 +1,14 @@
 {
   "rules": [
-    "1. Penguin rotates each round, cycling through every player.",
-    "2. Penguin chooses a PROBLEM card and reads it out.",
+    "1. The Penguin rotates each round so everyone gets a turn to judge.",
+    "2. The Penguin draws a PROBLEM card and sets the stage.",
     "3. Each player draws 4 CONSTRAINTS and must use at least 1.",
     "4. One random non-Penguin player gets a secret TWIST.",
-    "5. Players write a pitch on a timer and may add a quick sketch.",
-    "6. The player with the best pitch wins $100 and the round.",
+    "5. Players pitch on a timer and may add a quick sketch.",
+    "6. The best pitch wins $100 and the round.",
     "7. Each extra CONSTRAINT used adds a $25 bonus when you win.",
     "8. If the TWIST player wins, they earn $200.",
-    "9. If a pitch is AI-generated, a correct challenge disqualifies them and costs $100; a wrong challenge disqualifies the accuser.",
+    "9. A correct challenge disqualifies them and costs $100; a wrong challenge disqualifies the accuser.",
     "10. Top players enter the Final Round pitch-off, with one or more Penguins."
   ],
   "askDeck": [

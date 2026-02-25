@@ -98,17 +98,13 @@ export default function Join() {
           <h1>Enter a room code</h1>
           <p>Use the code from your host to jump into the lobby.</p>
         </div>
-        <div className="panel">
-          <h3>Example</h3>
-          <div className="timer">PPG-482</div>
-        </div>
       </section>
 
       {lastRoom && lastName && (
-        <section className="panel">
+        <section className="panel highlight">
           <h3>Quick rejoin</h3>
           <p>
-            Jump back into {lastRoom} as {lastName}.
+            Welcome back! Jump into {lastRoom} as {lastName}.
           </p>
           <div className="footer-actions" style={{ marginTop: '12px' }}>
             <button
@@ -151,6 +147,10 @@ export default function Join() {
             onChange={(event) => setCode(event.target.value)}
             style={{ marginTop: '10px' }}
           />
+          <p className="helper-text">
+            <br></br>
+            Room codes look like this: <span className="code-pill">PPG-XXX</span>
+          </p>
           <div className="footer-actions" style={{ marginTop: '16px' }}>
             <button className="button" type="submit" disabled={status === 'joining'}>
               Join room
@@ -160,7 +160,7 @@ export default function Join() {
               type="button"
               onClick={() => navigate('/')}
             >
-              Cancel
+              Back to home
             </button>
           </div>
           {error && (

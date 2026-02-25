@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import GameFlowInfographic from './GameFlowInfographic'
+import { apiFetch } from '../utils/api'
 
 type TopNavProps = {
   currentPhase?: string | null
@@ -15,6 +16,7 @@ const links = [
 export default function TopNav({ currentPhase = null }: TopNavProps) {
   const location = useLocation()
   const [showGameFlow, setShowGameFlow] = useState(false)
+  const [backendStatus, setBackendStatus] = useState<'live' | 'down' | 'checking'>('checking')
   const isPhaseRoute =
     location.pathname.startsWith('/lobby') ||
     location.pathname.startsWith('/deal') ||
@@ -54,6 +56,44 @@ export default function TopNav({ currentPhase = null }: TopNavProps) {
     | 'final-round'
     | null
 
+  useEffect(() => {
+    let cancelled = false
+    let intervalId: number | undefined
+
+    const checkHealth = async () => {
+      try {
+        const response = await apiFetch('/api/health')
+        if (!response.ok) {
+          throw new Error('Health endpoint returned non-OK')
+        }
+        if (!cancelled) {
+          setBackendStatus('live')
+        }
+      } catch {
+        if (!cancelled) {
+          setBackendStatus('down')
+        }
+      }
+    }
+
+    void checkHealth()
+    intervalId = window.setInterval(checkHealth, 15000)
+
+    return () => {
+      cancelled = true
+      if (intervalId) {
+        window.clearInterval(intervalId)
+      }
+    }
+  }, [])
+
+  const backendStatusLabel =
+    backendStatus === 'live'
+      ? 'Backend API healthy'
+      : backendStatus === 'down'
+        ? 'Backend API down'
+        : 'Checking backend API...'
+
   return (
     <>
       <header className="top-nav">
@@ -66,28 +106,34 @@ export default function TopNav({ currentPhase = null }: TopNavProps) {
             <span>Stay Cool. Pitch Hot. Win big with the wildest ideas.</span>
           </div>
         </div>
-        {!hideNav && (
-          <nav className="nav-links">
-            {links.map((link) => (
-              <NavLink
-                key={link.to}
-                to={link.to}
-                className={({ isActive }) =>
-                  isActive ? 'nav-link active' : 'nav-link'
-                }
-              >
-                {link.label}
-              </NavLink>
-            ))}
-          </nav>
-        )}
-        {isPhaseRoute && (
-          <div className="nav-links">
-            <button className="button secondary" onClick={() => setShowGameFlow(true)}>
-              Game Flow
-            </button>
+        <div className="top-nav-right">
+          {!hideNav && (
+            <nav className="nav-links">
+              {links.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  className={({ isActive }) =>
+                    isActive ? 'nav-link active' : 'nav-link'
+                  }
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </nav>
+          )}
+          {isPhaseRoute && (
+            <div className="nav-links">
+              <button className="button secondary" onClick={() => setShowGameFlow(true)}>
+                Game Flow
+              </button>
+            </div>
+          )}
+          <div className="backend-health-indicator" title={backendStatusLabel} aria-label={backendStatusLabel}>
+            <span className="backend-health-dot" data-state={backendStatus} />
+            <span className="backend-health-tooltip">{backendStatusLabel}</span>
           </div>
-        )}
+        </div>
       </header>
       {showGameFlow && (
         <div className="modal-backdrop" onClick={() => setShowGameFlow(false)}>
