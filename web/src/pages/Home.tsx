@@ -1,14 +1,8 @@
-import { useEffect, useState } from 'react'
-import { apiFetch } from '../utils/api'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { playActionSound } from '../utils/soundEffects'
 import GameFlowInfographic from '../components/GameFlowInfographic'
-
-type HealthStatus = {
-  ok: boolean
-  service: string
-  time: string
-}
+import { apiFetch } from '../utils/api'
 
 type CreateRoomResponse = {
   ok: boolean
@@ -20,40 +14,11 @@ type CreateRoomResponse = {
 
 export default function Home() {
   const navigate = useNavigate()
-  const [health, setHealth] = useState<HealthStatus | null>(null)
-  const [status, setStatus] = useState<'idle' | 'live' | 'down'>('idle')
   const [roomStatus, setRoomStatus] = useState<'idle' | 'loading' | 'error'>(
     'idle'
   )
   const [hostName, setHostName] = useState('')
   const [roomError, setRoomError] = useState('')
-
-  useEffect(() => {
-    let cancelled = false
-
-    const load = async () => {
-      try {
-        const [healthResponse] = await Promise.all([apiFetch('/api/health')])
-        if (!healthResponse.ok) {
-          throw new Error('Health check failed')
-        }
-        const data = (await healthResponse.json()) as HealthStatus
-        if (!cancelled) {
-          setHealth(data)
-          setStatus('live')
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setStatus('down')
-        }
-      }
-    }
-
-    load()
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const handleCreateRoom = async () => {
     try {
@@ -92,37 +57,22 @@ export default function Home() {
         <div>
           <div className="eyebrow">Kickoff</div>
           <h1>Bring the pitch night online.</h1>
+          <p className="home-hero-hook">Turn wild ideas into competitive chaos.</p>
           <p>
-            Pitch Penguin is a entrepreneurship-themed social pitch party
-            where: <br></br> <strong>PROBLEM</strong> cards present a problem, <br></br> <strong>CONSTRAINTs</strong> are quirky requirements, <br></br> and <strong>TWISTs</strong> throw a curveball.
-            <br></br>Penguins may invest in ideas based on creativity, effort,
-            entertainment, or just pure chaos.
-          </p>
-        </div>
-        <div className="panel">
-          <div
-            className="pill"
-            data-state={status === 'live' ? 'live' : status === 'down' ? 'down' : 'idle'}
-          >
-            {status === 'live' && 'Backend Online'}
-            {status === 'down' && 'Backend Offline'}
-            {status === 'idle' && 'Checking Backend...'}
-          </div>
-          <p style={{ marginTop: '10px' }}>
-            {health?.service ?? 'Waiting for backend...'}
-          </p>
-          <p style={{ marginTop: '6px', fontSize: '0.85rem' }}>
-            {health?.time ?? 'No timestamp yet'}
+            Every round drops a <strong>PROBLEM</strong>, weird
+            <strong> CONSTRAINTS</strong>, and a chaotic <strong>TWIST</strong>.
+            <br></br>Penguins may invest in ideas based on creativity, effort, entertainment, or just pure chaos.
+            <br></br>Pitch, vote, and invest until one founder waddles away rich.
           </p>
         </div>
       </section>
 
-      <section className="grid">
-        <div className="panel">
+      <section className="grid home-top-grid">
+        <div className="panel home-start-panel">
           <h3>Start a room</h3>
           <p>Create a lobby, invite friends, choose local or online play.</p>
           <label htmlFor="host-name" style={{ marginTop: '12px', display: 'block' }}>
-            <strong>Host name</strong>
+            <strong>Host name (room creator)</strong>
           </label>
           <input
             id="host-name"
@@ -134,7 +84,7 @@ export default function Home() {
           />
           <div className="footer-actions" style={{ marginTop: '16px' }}>
             <button
-              className="button"
+              className="button primary-cta"
               onClick={handleCreateRoom}
               disabled={roomStatus === 'loading'}
             >
@@ -147,33 +97,38 @@ export default function Home() {
               Join existing room
             </button>
           </div>
+          <p style={{ marginTop: '10px', fontSize: '0.86rem' }}>
+            Joining a friend&apos;s room? Use the Join page with their room code.
+          </p>
           {(roomStatus === 'error' || roomError) && (
             <p style={{ marginTop: '12px', color: '#8c2d2a' }}>
               {roomError || 'Could not create a room. Try again.'}
             </p>
           )}
         </div>
-        <div className="panel">
-          <h3>Pitching features</h3>
-          <p>
-            <strong>Visual pitch board: </strong>Add a doodle or logo sketch while you pitch, Pictionary-style. Make sure to
-            <span title="Keep it simple, stupid."> KiSS!</span>
-          </p>
-          <p style={{ marginTop: '24px' }}>
-            <strong>Robot reader: </strong>Every pitch gets an robot voice. Choose from quirky announcers and
-            crisp startup narrators, if you don't want to do the honors yourself.
-          </p>
-          <p style={{ marginTop: '24px' }}>
-            <strong>The AI angle: </strong>If you can't come up with a pitch in time, the AI Assistant has your back.
-            But beware - if your opponents correctly guess that your pitch was AI-generated,
-            you could be disqualified and lose money. Use it wisely!
-          </p>
+        <div className="panel home-flow-panel">
+          <h3>How it works</h3>
+          <p>From deal to voting in four quick phases.</p>
+          <div className="home-flow-wrap">
+            <GameFlowInfographic />
+          </div>
         </div>
       </section>
       <section className="panel">
-        <h3>Game flow at a glance</h3>
-        <div style={{ marginTop: '12px', borderRadius: '14px', overflow: 'hidden' }}>
-          <GameFlowInfographic />
+        <h3>Pitching features</h3>
+        <div className="feature-grid">
+          <div className="feature-card">
+            <div className="feature-tag">Visual board</div>
+            <p>Add a doodle or logo sketch while you pitch, Pictionary-style. Make sure to <span title="Keep it simple, stupid"><strong>KiSS</strong></span> so your idea lands fast!</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-tag">Robot reader</div>
+            <p>Every pitch gets an robot voice. Choose an announcers and crisp startup narrators, if you don't want to do the honors yourself.</p>
+          </div>
+          <div className="feature-card">
+            <div className="feature-tag">AI backup</div>
+            <p>If you can't come up with a pitch in time, the AI Assistant has your back. <strong>But beware -</strong> if your opponents correctly guess that your pitch was AI-generated, you could be disqualified and lose money. Use it wisely!</p>
+          </div>
         </div>
       </section>
     </>

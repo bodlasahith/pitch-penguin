@@ -57,6 +57,64 @@
   flex-wrap: wrap;
 }
 
+.top-nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backend-health-indicator {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
+
+.backend-health-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #d38d23;
+  box-shadow: 0 0 0 3px rgba(211, 141, 35, 0.18);
+}
+
+.backend-health-dot[data-state="live"] {
+  background: #2b9a4a;
+  box-shadow: 0 0 0 3px rgba(43, 154, 74, 0.18);
+}
+
+.backend-health-dot[data-state="down"] {
+  background: #d38d23;
+  box-shadow: 0 0 0 3px rgba(211, 141, 35, 0.18);
+}
+
+.backend-health-tooltip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 0.74rem;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: #fffaf3;
+  background: #3f352d;
+  box-shadow: 0 10px 18px rgba(20, 16, 12, 0.2);
+  opacity: 0;
+  transform: translateY(-2px);
+  pointer-events: none;
+  transition: opacity 0.16s ease, transform 0.16s ease;
+  z-index: 5;
+}
+
+.backend-health-indicator:hover .backend-health-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .nav-link {
   padding: 8px 14px;
   border-radius: 999px;
@@ -92,6 +150,17 @@
 .page-header h1 {
   margin: 6px 0 8px;
   font-size: clamp(2rem, 4vw, 3rem);
+}
+
+.home-hero-copy {
+  max-width: 760px;
+}
+
+.home-hero-hook {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #2f2721;
+  margin-bottom: 10px;
 }
 
 .eyebrow {
@@ -178,6 +247,13 @@
   box-shadow: 0 12px 20px rgba(245, 181, 68, 0.25);
 }
 
+.button.primary-cta {
+  background: #eca22d;
+  color: #2a1d10;
+  box-shadow: 0 14px 22px rgba(210, 136, 29, 0.28);
+  min-width: 170px;
+}
+
 .button.secondary {
   background: #f1ede6;
   color: #4a4037;
@@ -239,10 +315,138 @@
   border: 1px solid rgba(80, 70, 60, 0.12);
 }
 
+.home-top-grid {
+  grid-template-columns: minmax(300px, 1fr) minmax(280px, 1.38fr);
+}
+
+.home-start-panel .footer-actions {
+  align-items: stretch;
+}
+
+.home-start-panel .footer-actions .button {
+  flex: 1 1 180px;
+}
+
+.feature-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.feature-card {
+  border-radius: 14px;
+  border: 1px solid rgba(65, 56, 47, 0.12);
+  background: #fffaf1;
+  padding: 12px;
+}
+
+.feature-card p {
+  margin-top: 6px;
+  font-size: 0.92rem;
+}
+
+.feature-tag {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #fff1cc;
+  color: #5d4630;
+}
+
+.home-flow-panel p {
+  margin-bottom: 10px;
+}
+
+.home-flow-wrap {
+  margin-top: 12px;
+  border-radius: 14px;
+  overflow: hidden;
+  max-width: 840px;
+}
+
+.rules-groups {
+  display: grid;
+  gap: 14px;
+}
+
+.rules-group {
+  border: 1px solid rgba(65, 56, 47, 0.12);
+  border-radius: 14px;
+  background: #fffaf2;
+  padding: 12px;
+}
+
+.rules-group-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.rules-group-head h4 {
+  margin: 0;
+}
+
+.rules-group-head p {
+  margin-top: 4px;
+  font-size: 0.9rem;
+}
+
+.rules-group-icon {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: #fff1cc;
+  color: #5d4630;
+  border-radius: 999px;
+  padding: 4px 8px;
+  border: 1px solid rgba(93, 70, 48, 0.22);
+}
+
+.rules-list-vertical {
+  gap: 10px;
+}
+
+.final-round-intro {
+  margin-top: 16px;
+}
+
+.final-round-cases {
+  margin-top: 12px;
+}
+
+.quick-rejoin-panel {
+  background: linear-gradient(135deg, rgba(255, 252, 242, 0.95), rgba(255, 244, 215, 0.88));
+  border-color: rgba(104, 85, 61, 0.18);
+}
+
+.quick-rejoin-meta {
+  margin-top: 8px;
+  font-size: 0.92rem;
+  color: #473e34;
+}
+
+.field-help {
+  margin-top: 6px;
+  font-size: 0.84rem;
+  color: #6b6056;
+}
+
 .footer-actions {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+}
+
+@media (max-width: 760px) {
+  .home-top-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .modal-backdrop {
