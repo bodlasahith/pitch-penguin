@@ -516,9 +516,13 @@
   gap: 10px;
 }
 
+.footer-actions.cta-stack {
+  display: flex;
+  gap: 10px;
+}
+
 .footer-actions.cta-stack .button {
-  width: 100%;
-  justify-content: center;
+  flex: 1 1 0;
 }
 
 /* Feature cards */

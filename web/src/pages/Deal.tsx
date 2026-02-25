@@ -339,7 +339,7 @@ export default function Deal() {
               </div>
               <div className="footer-actions" style={{ marginTop: '16px' }}>
                 <button
-                  className="button"
+                  className="button primary-cta"
                   onClick={handleSelectAsk}
                   disabled={!selectedOption || (selectedOption === '__custom__' && customProblem.trim().length === 0)}
                 >

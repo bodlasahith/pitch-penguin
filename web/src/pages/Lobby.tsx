@@ -462,8 +462,8 @@ export default function Lobby() {
         <div className="panel">
           <h3>Room code</h3>
           <div className="timer">{code ?? 'TBD'}</div>
-          <div className="footer-actions" style={{ marginTop: '12px' }}>
-            <button className="button secondary" onClick={handleCopy}>
+          <div className="footer-actions cta-stack" style={{ marginTop: '12px' }}>
+            <button className="button primary" onClick={handleCopy}>
               {copyStatus === 'copied' ? 'Copied' : 'Copy code'}
             </button>
             <button
@@ -489,7 +489,14 @@ export default function Lobby() {
           {roomStatus === 'error' ? (
             <p>Room not found. Double-check the code.</p>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}onMouseEnter={(e) => {
+            e.currentTarget.style.transition = 'all 0.1s ease-in'
+            e.currentTarget.style.transform = 'scale(1.05)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transition = 'all 0.1s ease-in'
+            e.currentTarget.style.transform = 'scale(1)'
+        }}>
               {players?.map((player) => {
                 const mascotImg = getMascotImage(player.mascot)
                 const mascotTitle = getMascotName(player.mascot) ?? 'Mascot'
@@ -693,9 +700,9 @@ export default function Lobby() {
             )}
           </div>
           {isHost ? (
-            <div className="footer-actions" style={{ marginTop: '16px' }}>
+            <div className="footer-actions cta-stack" style={{ marginTop: '16px' }}>
               <button
-                className="button"
+                className="button primary-cta"
                 onClick={handleAdvance}
                 disabled={(players?.length ?? 0) < 3}
               >

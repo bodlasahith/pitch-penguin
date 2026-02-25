@@ -877,7 +877,7 @@ export default function FinalRound() {
               </div>
               <div className="footer-actions" style={{ marginTop: '16px' }}>
                 <button
-                  className="button"
+                  className="button primary-cta"
                   onClick={handleSubmitPitch}
                   disabled={isLocked}
                 >

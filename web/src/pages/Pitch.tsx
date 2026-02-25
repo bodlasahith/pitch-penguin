@@ -691,7 +691,7 @@ export default function Pitch() {
             </div>
             <div className="footer-actions" style={{ marginTop: '16px' }}>
               <button
-                className="button"
+                className="button primary-cta"
                 onClick={() => handleStatus('ready')}
                 disabled={isLocked}
               >
@@ -766,7 +766,7 @@ export default function Pitch() {
               <strong>Generated Pitch:</strong>
               <span>"{generatedPitch}"</span>
               <div className="footer-actions" style={{ marginTop: '12px' }}>
-                <button className="button" onClick={handleUseGeneratedPitch} disabled={isLocked}>
+                <button className="button primary-cta" onClick={handleUseGeneratedPitch} disabled={isLocked}>
                   Use This
                 </button>
               </div>
@@ -775,7 +775,7 @@ export default function Pitch() {
           {!generatedPitch && (
             <div className="footer-actions" style={{ marginTop: '12px' }}>
               <button
-                className="button"
+                className="button primary-cta"
                 onClick={handleGeneratePitch}
                 disabled={
                   generating ||

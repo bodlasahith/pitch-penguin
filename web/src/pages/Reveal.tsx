@@ -560,14 +560,14 @@ export default function Reveal() {
                 </button>
               )}
               {!isLastPitch && (
-                <button className="button" onClick={handleNext}>
+                <button className="button primary-cta" onClick={handleNext}>
                   Next
                 </button>
               )}
             </div>
             {isPenguin && !isCurrentPitchDisqualified && (
               <button
-                className="button"
+                className="button primary-cta"
                 onClick={() => {
                   if (currentPitch && !isPitchDisqualified(currentPitch)) {
                     setSelectedWinnerId(currentPitch.id)
@@ -608,7 +608,7 @@ export default function Reveal() {
           </p>
           <div className="footer-actions" style={{ marginTop: '16px' }}>
             <button
-              className={`button${!canChallenge ? ' secondary' : ''}`}
+              className={`button primary-cta${!canChallenge ? ' secondary' : ''}`}
               onClick={handleChallenge}
               disabled={!canChallenge || !currentPitch || isOwnPitch || !hasPenguinViewed}
             >
@@ -648,7 +648,7 @@ export default function Reveal() {
           <p>Review all pitches and select your winner.</p>
           <div className="footer-actions" style={{ marginTop: '16px' }}>
             <button
-              className="button"
+              className="button primary-cta"
               onClick={() => {
                 if (!selectedWinnerId) {
                   setJudgingError('Select a winning pitch before completing judging.')

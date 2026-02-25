@@ -945,12 +945,12 @@ export default function Results() {
           {isHost && (
             <>
               {finalRoundNeeded && !gameWinner && gameWinners.length === 0 && (
-                <button className="button" onClick={handleNextRound}>
+                <button className="button primary-cta" onClick={handleNextRound}>
                   Start Final Round
                 </button>
               )}
               {!gameWinner && gameWinners.length === 0 && !finalRoundNeeded && (
-                <button className="button" onClick={handleNextRound}>
+                <button className="button primary-cta" onClick={handleNextRound}>
                   Start Next Round
                 </button>
               )}
