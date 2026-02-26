@@ -340,6 +340,10 @@
 }
 
 .list li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   padding: 8px 10px;
   border-radius: 10px;
   background: #f7f1e7;

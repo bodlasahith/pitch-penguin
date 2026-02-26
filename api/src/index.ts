@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs/promises";
 import Fastify from "fastify";
 import { Server as SocketIOServer, type Socket as SocketIOSocket } from "socket.io";
 import cardsData from "./cards.json" with { type: "json" };
@@ -109,6 +110,8 @@ type RoomGameState = {
 
 const server = Fastify({
   logger: true,
+  connectionTimeout: 60_000,
+  requestTimeout: 60_000,
 });
 let io: SocketIOServer | null = null;
 const normalizeOrigin = (value: string) => value.trim().replace(/\/+$/, "");
@@ -155,15 +158,170 @@ const MASCOT_OPTIONS = cardsData.mascotOptions;
 const rooms = new Map<string, Room>();
 const roomGameStates = new Map<string, RoomGameState>();
 const roomPitches = new Map<string, Pitch[]>();
+
+// TTS cache: store generated audio to avoid regenerating for multiple users
+type CachedTts = {
+  audio: Buffer;
+  contentType: string;
+  createdAt: number;
+};
+const ttsCacheMap = new Map<string, CachedTts>();
+const TTS_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Disk cache directory - persists across server spin-downs
+const TTS_DISK_CACHE_DIR = path.join(__dirname, "../../.tts-cache");
+
+const generateTtsCacheKey = (text: string, voice: string, model: string, lang: string): string => {
+  return `${model}::${voice}::${lang}::${text.trim().toLowerCase()}`;
+};
+
+const getCacheFilename = (cacheKey: string): string => {
+  // Create a safe filename from cache key
+  const safe = cacheKey
+    .replace(/::/g, "__")
+    .replace(/[^a-z0-9_-]/gi, "+")
+    .substring(0, 200); // Limit filename length
+  return `${safe}.cache`;
+};
+
+const loadTtsFromDisk = async (cacheKey: string): Promise<CachedTts | null> => {
+  try {
+    const filename = getCacheFilename(cacheKey);
+    const filepath = path.join(TTS_DISK_CACHE_DIR, filename);
+    const metaPath = `${filepath}.meta.json`;
+
+    // Check if files exist
+    const [audioData, metaData] = await Promise.all([
+      fs.readFile(filepath).catch(() => null),
+      fs.readFile(metaPath, "utf-8").catch(() => null),
+    ]);
+
+    if (!audioData || !metaData) return null;
+
+    const meta = JSON.parse(metaData);
+
+    // Check if cache has expired
+    if (Date.now() - meta.createdAt > TTS_CACHE_MAX_AGE_MS) {
+      // Delete expired cache
+      await Promise.all([fs.unlink(filepath).catch(() => {}), fs.unlink(metaPath).catch(() => {})]);
+      return null;
+    }
+
+    return {
+      audio: audioData,
+      contentType: meta.contentType,
+      createdAt: meta.createdAt,
+    };
+  } catch {
+    return null;
+  }
+};
+
+const saveTtsToDisk = async (cacheKey: string, cached: CachedTts): Promise<void> => {
+  try {
+    // Ensure cache directory exists
+    await fs.mkdir(TTS_DISK_CACHE_DIR, { recursive: true });
+
+    const filename = getCacheFilename(cacheKey);
+    const filepath = path.join(TTS_DISK_CACHE_DIR, filename);
+    const metaPath = `${filepath}.meta.json`;
+
+    // Save audio and metadata
+    await Promise.all([
+      fs.writeFile(filepath, cached.audio),
+      fs.writeFile(
+        metaPath,
+        JSON.stringify({
+          contentType: cached.contentType,
+          createdAt: cached.createdAt,
+        }),
+      ),
+    ]);
+  } catch (err) {
+    server.log.error({ err }, "[TTS Cache] Failed to save to disk");
+  }
+};
+
+const getCachedTts = (key: string): CachedTts | null => {
+  const cached = ttsCacheMap.get(key);
+  if (!cached) return null;
+
+  // Check if cache has expired
+  if (Date.now() - cached.createdAt > TTS_CACHE_MAX_AGE_MS) {
+    ttsCacheMap.delete(key);
+    return null;
+  }
+
+  return cached;
+};
+
+const cleanupExpiredDiskCache = async (): Promise<number> => {
+  try {
+    const files = await fs.readdir(TTS_DISK_CACHE_DIR).catch(() => []);
+    let cleanedCount = 0;
+
+    for (const file of files) {
+      if (!file.endsWith(".meta.json")) continue;
+
+      const metaPath = path.join(TTS_DISK_CACHE_DIR, file);
+      const audioPath = metaPath.replace(".meta.json", "");
+
+      try {
+        const metaData = await fs.readFile(metaPath, "utf-8");
+        const meta = JSON.parse(metaData);
+
+        if (Date.now() - meta.createdAt > TTS_CACHE_MAX_AGE_MS) {
+          await Promise.all([
+            fs.unlink(audioPath).catch(() => {}),
+            fs.unlink(metaPath).catch(() => {}),
+          ]);
+          cleanedCount += 1;
+        }
+      } catch {
+        // Invalid or corrupted meta file - remove both
+        await Promise.all([
+          fs.unlink(audioPath).catch(() => {}),
+          fs.unlink(metaPath).catch(() => {}),
+        ]);
+        cleanedCount += 1;
+      }
+    }
+
+    return cleanedCount;
+  } catch {
+    return 0;
+  }
+};
+
+const initializeTtsCache = async (): Promise<void> => {
+  try {
+    // Ensure cache directory exists
+    await fs.mkdir(TTS_DISK_CACHE_DIR, { recursive: true });
+
+    // Count existing cache files
+    const files = await fs.readdir(TTS_DISK_CACHE_DIR).catch(() => []);
+    const cacheFiles = files.filter((f) => f.endsWith(".cache"));
+
+    server.log.info(
+      `[TTS Cache] Initialized. Found ${cacheFiles.length} cached audio files on disk.`,
+    );
+  } catch (err) {
+    server.log.error({ err }, "[TTS Cache] Failed to initialize cache directory");
+  }
+};
+
 const ROOM_CAPACITY = 14;
 const EMPTY_ROOM_TTL_MS = 10 * 60 * 1000;
 const DEAPI_BASE_URL = process.env.DEAPI_BASE_URL ?? "https://api.deapi.ai";
 const DEAPI_TTS_MODEL = process.env.DEAPI_TTS_MODEL ?? "Kokoro";
+const DEAPI_QWEN3_TTS_MODEL =
+  process.env.DEAPI_QWEN3_TTS_MODEL ?? "Qwen3_TTS_12Hz_1_7B_CustomVoice";
 const DEAPI_TTS_FORMAT = process.env.DEAPI_TTS_FORMAT ?? "mp3";
 const DEAPI_TTS_LANG = process.env.DEAPI_TTS_LANG ?? "en-us";
+const DEAPI_QWEN3_TTS_LANG = process.env.DEAPI_QWEN3_TTS_LANG ?? "English";
 const DEAPI_TTS_SAMPLE_RATE = Number(process.env.DEAPI_TTS_SAMPLE_RATE ?? "24000");
-const DEAPI_POLL_INTERVAL_MS = 1000;
-const DEAPI_MAX_POLL_ATTEMPTS = 15;
+const DEAPI_POLL_INTERVAL_MS = 2000;
+const DEAPI_MAX_POLL_ATTEMPTS = 30; // Reduced: serves Basic plan (fails faster) and Premium plan (completes within this window)
 const DEAPI_KOKORO_VOICE_IDS: Record<string, string> = {
   adam: "am_adam",
   alloy: "af_alloy",
@@ -195,6 +353,17 @@ const DEAPI_VOICE_BY_PROFILE: Record<string, string> = {
   "calm founder": "Onyx",
   "buzzword bot": "Nova",
   "wall street hype": "am_puck",
+};
+const DEAPI_QWEN3_VOICE_IDS: Record<string, string> = {
+  aiden: "Aiden",
+  dylan: "Dylan",
+  eric: "Eric",
+  ono_anna: "Ono_Anna",
+  ryan: "Ryan",
+  serena: "Serena",
+  sohee: "Sohee",
+  uncle_fu: "Uncle_Fu",
+  vivian: "Vivian",
 };
 
 const getAvailableMascots = (room: Room, excludePlayerName?: string) => {
@@ -261,34 +430,61 @@ const stripEmojiForTts = (text: string) =>
     .replace(/\s{2,}/g, " ")
     .trim();
 
-const resolveDeapiVoice = (voiceId?: string, voiceProfile?: string) => {
+const resolveDeapiVoice = (
+  voiceId?: string,
+  voiceProfile?: string,
+): { voice: string; model: string; lang: string } => {
   const direct = voiceId?.trim();
   if (direct) {
     const lowered = direct.toLowerCase();
     if (DEAPI_KOKORO_VOICE_IDS[lowered]) {
-      return DEAPI_KOKORO_VOICE_IDS[lowered];
+      return {
+        voice: DEAPI_KOKORO_VOICE_IDS[lowered],
+        model: DEAPI_TTS_MODEL,
+        lang: DEAPI_TTS_LANG,
+      };
+    }
+    if (DEAPI_QWEN3_VOICE_IDS[lowered]) {
+      return {
+        voice: DEAPI_QWEN3_VOICE_IDS[lowered],
+        model: DEAPI_QWEN3_TTS_MODEL,
+        lang: DEAPI_QWEN3_TTS_LANG,
+      };
     }
     if (/^[a-z0-9_:-]+$/i.test(direct)) {
-      return direct;
+      return { voice: direct, model: DEAPI_TTS_MODEL, lang: DEAPI_TTS_LANG };
     }
   }
   const normalizedProfile = voiceProfile?.trim().toLowerCase() ?? "";
   if (normalizedProfile && DEAPI_VOICE_BY_PROFILE[normalizedProfile]) {
     const mapped = DEAPI_VOICE_BY_PROFILE[normalizedProfile];
     const lowered = mapped.toLowerCase();
-    return DEAPI_KOKORO_VOICE_IDS[lowered] ?? mapped;
+    return {
+      voice: DEAPI_KOKORO_VOICE_IDS[lowered] ?? mapped,
+      model: DEAPI_TTS_MODEL,
+      lang: DEAPI_TTS_LANG,
+    };
   }
   const fallback = DEAPI_VOICE_BY_PROFILE["game show host"];
-  return DEAPI_KOKORO_VOICE_IDS[fallback.toLowerCase()] ?? fallback;
+  return {
+    voice: DEAPI_KOKORO_VOICE_IDS[fallback.toLowerCase()] ?? fallback,
+    model: DEAPI_TTS_MODEL,
+    lang: DEAPI_TTS_LANG,
+  };
 };
 
 const generateDeapiTts = async (
   apiKey: string,
   text: string,
   voice: string,
+  model: string,
+  lang: string,
 ): Promise<{ audio: Buffer; contentType: string }> => {
   const sanitizedText = stripEmojiForTts(text);
   const textForTts = sanitizedText || "No pitch provided.";
+
+  console.log(`[TTS] Calling deAPI with model=${model}, voice=${voice}, lang=${lang}`);
+
   const createResponse = await fetch(`${DEAPI_BASE_URL}/api/v1/client/txt2audio`, {
     method: "POST",
     headers: {
@@ -297,8 +493,8 @@ const generateDeapiTts = async (
     },
     body: JSON.stringify({
       text: textForTts,
-      model: DEAPI_TTS_MODEL,
-      lang: DEAPI_TTS_LANG,
+      model,
+      lang,
       voice,
       speed: 1,
       format: DEAPI_TTS_FORMAT,
@@ -312,6 +508,10 @@ const generateDeapiTts = async (
       getNestedString(errorPayload, ["message"]) ??
       getNestedString(errorPayload, ["error", "message"]) ??
       "Failed to create TTS request";
+    console.error(
+      `[TTS] deAPI create request failed: ${createResponse.status} ${createResponse.statusText}`,
+      errorPayload,
+    );
     throw new Error(message);
   }
 
@@ -323,7 +523,13 @@ const generateDeapiTts = async (
     throw new Error("deAPI did not return request_id");
   }
 
+  // Wait before polling to avoid rate limits
+  await sleep(3000);
+
   let resultUrl: string | null = null;
+  server.log.info(`[TTS] Polling for request ${requestId} with model=${model}, voice=${voice}`);
+  let consecutiveRateLimits = 0;
+
   for (let attempt = 0; attempt < DEAPI_MAX_POLL_ATTEMPTS; attempt += 1) {
     const statusResponse = await fetch(
       `${DEAPI_BASE_URL}/api/v1/client/request-status/${requestId}`,
@@ -339,8 +545,24 @@ const generateDeapiTts = async (
         getNestedString(statusPayload, ["message"]) ??
         getNestedString(statusPayload, ["error", "message"]) ??
         "Failed to read TTS status";
+
+      // Handle rate limiting - give up immediately instead of retrying
+      if (statusResponse.status === 429) {
+        server.log.warn(
+          `[TTS] Rate limited (429) at attempt ${attempt + 1}. Account may be on Basic plan with exhausted daily limit.`,
+        );
+        throw new Error(
+          "429 Too Many Requests. Rate limit exceeded - try again after daily reset or upgrade API plan.",
+        );
+      }
+
+      server.log.error(
+        `[TTS] Status request failed: ${statusResponse.status} ${statusResponse.statusText} - ${statusMessage}`,
+      );
       throw new Error(statusMessage);
     }
+
+    consecutiveRateLimits = 0; // Reset rate limit counter on success
 
     const statusPayload = await parseJsonSafely(statusResponse);
     const statusRaw =
@@ -355,6 +577,7 @@ const generateDeapiTts = async (
       getNestedString(statusPayload, ["url"]);
 
     if ((status === "completed" || status === "success" || status === "done") && resultUrl) {
+      server.log.info(`[TTS] Request ${requestId} completed after ${attempt + 1} attempts`);
       break;
     }
     if (status === "failed" || status === "error") {
@@ -362,17 +585,30 @@ const generateDeapiTts = async (
         getNestedString(statusPayload, ["data", "message"]) ??
         getNestedString(statusPayload, ["message"]) ??
         "deAPI TTS failed";
+      server.log.error(`[TTS] Request ${requestId} failed: ${failureMessage}`);
       throw new Error(failureMessage);
+    }
+    if (attempt > 0 && attempt % 10 === 0) {
+      server.log.info(
+        `[TTS] Still polling for ${requestId}, attempt ${attempt + 1}/${DEAPI_MAX_POLL_ATTEMPTS}, status=${status}`,
+      );
     }
     await sleep(DEAPI_POLL_INTERVAL_MS);
   }
 
   if (!resultUrl) {
+    server.log.error(
+      `[TTS] Timeout waiting for request ${requestId} after ${DEAPI_MAX_POLL_ATTEMPTS} attempts`,
+    );
     throw new Error("Timed out waiting for deAPI TTS audio");
   }
 
+  server.log.info(`[TTS] Downloading audio from ${resultUrl}`);
   const audioResponse = await fetch(resultUrl);
   if (!audioResponse.ok) {
+    server.log.error(
+      `[TTS] Failed to download audio: ${audioResponse.status} ${audioResponse.statusText}`,
+    );
     throw new Error("Failed to download generated TTS audio");
   }
 
@@ -1499,45 +1735,119 @@ server.post("/api/room/:code/toggle-voice", async (request) => {
   };
 });
 
-server.post("/api/tts", async (request, reply) => {
-  const body = request.body as {
-    text?: string;
-    voiceProfile?: string;
-    voiceId?: string;
-  };
-  const text = body.text?.trim() ?? "";
-  if (!text) {
-    return {
-      ok: false,
-      message: "text is required",
+server.post(
+  "/api/tts",
+  {
+    config: {
+      requestTimeout: 60_000,
+    },
+  },
+  async (request, reply) => {
+    const body = request.body as {
+      text?: string;
+      voiceProfile?: string;
+      voiceId?: string;
     };
-  }
+    const text = body.text?.trim() ?? "";
+    if (!text) {
+      return {
+        ok: false,
+        message: "text is required",
+      };
+    }
 
-  const apiKey = process.env.DEAPI_KEY?.trim();
-  if (!apiKey) {
-    reply.code(500);
-    return {
-      ok: false,
-      message: "DEAPI_KEY is not configured",
-    };
-  }
+    const apiKey = process.env.DEAPI_KEY?.trim();
+    if (!apiKey) {
+      server.log.error("[TTS] DEAPI_KEY is not configured in environment");
+      reply.code(500);
+      return {
+        ok: false,
+        message: "DEAPI_KEY is not configured",
+      };
+    }
 
-  const voice = resolveDeapiVoice(body.voiceId, body.voiceProfile);
+    const { voice, model, lang } = resolveDeapiVoice(body.voiceId, body.voiceProfile);
+    server.log.info(
+      `[TTS] Request: text="${text.substring(0, 50)}...", voice=${voice}, model=${model}, lang=${lang}`,
+    );
 
-  try {
-    const result = await generateDeapiTts(apiKey, text, voice);
-    reply.header("Content-Type", result.contentType);
-    reply.header("Cache-Control", "no-store");
-    return result.audio;
-  } catch (err) {
-    request.log.error({ err }, "deAPI TTS failed");
-    reply.code(502);
-    return {
-      ok: false,
-      message: "Failed to generate TTS audio",
-    };
-  }
-});
+    // Check server-side TTS cache (memory first, then disk)
+    const cacheKey = generateTtsCacheKey(text, voice, model, lang);
+
+    // 1. Check in-memory cache
+    let cachedAudio = getCachedTts(cacheKey);
+    if (cachedAudio) {
+      server.log.info(`[TTS] Cache HIT (memory): ${cacheKey.substring(0, 50)}...`);
+      reply.header("Content-Type", cachedAudio.contentType);
+      reply.header("Cache-Control", "no-store");
+      reply.header("X-TTS-Source", "memory-cache");
+      return cachedAudio.audio;
+    }
+
+    // 2. Check disk cache
+    cachedAudio = await loadTtsFromDisk(cacheKey);
+    if (cachedAudio) {
+      server.log.info(`[TTS] Cache HIT (disk): ${cacheKey.substring(0, 50)}...`);
+      // Load into memory for faster future access
+      ttsCacheMap.set(cacheKey, cachedAudio);
+      reply.header("Content-Type", cachedAudio.contentType);
+      reply.header("Cache-Control", "no-store");
+      reply.header("X-TTS-Source", "disk-cache");
+      return cachedAudio.audio;
+    }
+
+    server.log.info(`[TTS] Cache MISS - generating from deAPI...`);
+
+    try {
+      const result = await generateDeapiTts(apiKey, text, voice, model, lang);
+      server.log.info(`[TTS] Successfully generated audio, size=${result.audio.length} bytes`);
+
+      // Cache the generated audio for future requests (memory + disk)
+      const cachedData: CachedTts = {
+        audio: result.audio,
+        contentType: result.contentType,
+        createdAt: Date.now(),
+      };
+
+      ttsCacheMap.set(cacheKey, cachedData);
+      server.log.info(`[TTS] Cached in memory: ${cacheKey.substring(0, 50)}...`);
+
+      // Save to disk asynchronously (don't wait)
+      saveTtsToDisk(cacheKey, cachedData).then(() => {
+        server.log.info(`[TTS] Cached to disk: ${cacheKey.substring(0, 50)}...`);
+      });
+
+      reply.header("Content-Type", result.contentType);
+      reply.header("Cache-Control", "no-store");
+      reply.header("X-TTS-Source", "deapi-fresh");
+      return result.audio;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      server.log.error(`[TTS] deAPI TTS failed: ${errorMessage}`);
+      console.error("[TTS] Full error:", err);
+
+      // Return 429 if rate limited, so client can gracefully fall back to browser speech
+      if (
+        errorMessage.includes("Too Many") ||
+        errorMessage.includes("rate") ||
+        errorMessage.includes("429")
+      ) {
+        reply.code(429);
+        return {
+          ok: false,
+          message: "TTS service rate limited. Please use browser speech or try again later.",
+          code: "RATE_LIMITED",
+        };
+      }
+
+      reply.code(502);
+      return {
+        ok: false,
+        message: `Failed to generate TTS audio: ${errorMessage}`,
+      };
+    }
+  },
+);
 
 server.post("/api/room/:code/mascot", async (request) => {
   const { code } = request.params as { code: string };
@@ -2313,6 +2623,37 @@ const start = async () => {
     setupSocketServer();
     const port = Number(process.env.PORT ?? "3001");
     await server.listen({ port, host: "0.0.0.0" });
+
+    // Initialize TTS cache
+    await initializeTtsCache();
+
+    // Periodic TTS cache cleanup - remove expired entries every hour
+    setInterval(
+      async () => {
+        // Clean memory cache
+        let memoryCleanedCount = 0;
+        for (const [key, cached] of ttsCacheMap.entries()) {
+          if (Date.now() - cached.createdAt > TTS_CACHE_MAX_AGE_MS) {
+            ttsCacheMap.delete(key);
+            memoryCleanedCount += 1;
+          }
+        }
+
+        // Clean disk cache
+        const diskCleanedCount = await cleanupExpiredDiskCache();
+
+        if (memoryCleanedCount > 0 || diskCleanedCount > 0) {
+          server.log.info(
+            `[TTS Cache] Cleaned ${memoryCleanedCount} memory + ${diskCleanedCount} disk expired entries. Current memory size: ${ttsCacheMap.size}`,
+          );
+        }
+      },
+      60 * 60 * 1000,
+    ); // 60 minutes
+
+    server.log.info(
+      `[TTS Cache] Disk-based caching enabled. Cache persists across server restarts for 24 hours.`,
+    );
   } catch (err) {
     server.log.error(err);
     process.exit(1);

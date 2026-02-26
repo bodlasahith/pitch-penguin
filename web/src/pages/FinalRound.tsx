@@ -7,7 +7,7 @@ import { AnimatedMascot } from '../components/AnimatedMascot'
 import LeaderboardModal from '../components/LeaderboardModal'
 import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 import { buildNarrationText, KOKORO_VOICES, normalizeKokoroVoiceName, selectSpeechVoice } from '../utils/voiceProfiles'
-import { fetchServerTtsAudio } from '../utils/ttsApi'
+import { fetchServerTtsAudio, prefetchServerTtsAudio } from '../utils/ttsApi'
 
 type GameResponse = {
   ok: boolean
@@ -98,6 +98,14 @@ export default function FinalRound() {
   const colorOptions = ['#2e2a27', '#d24b4b', '#3e7c3e', '#2d6cdf', '#f5b544', '#7c4bd2']
   const backgroundColor = { r: 255, g: 250, b: 241 }
   const canvasBg = '#fffaf1'
+  const prefetchItems = useMemo(
+    () =>
+      pitches.map((pitch) => ({
+        text: buildNarrationText(pitch.title, pitch.summary),
+        voiceId: normalizeKokoroVoiceName(pitch.voice),
+      })),
+    [pitches],
+  )
 
   const getSketchData = useCallback(() => {
     const canvas = canvasRef.current
@@ -195,11 +203,23 @@ export default function FinalRound() {
         voiceId: selectedVoiceName,
       })
       if (serverAudio && narrationToken === narrationTokenRef.current) {
+        console.info('[TTS] Playing server audio narration', {
+          source: 'deapi',
+          mode: 'final-round',
+          pitchId: pitch.id,
+          pitchTitle: pitch.title,
+          voice: selectedVoiceName,
+        })
         await playBlobNarration(pitch.id, serverAudio, narrationToken)
         return
       }
     } catch {
-      // Fall back to browser speech synthesis.
+      console.info('[TTS] Server narration failed; falling back to Web Speech API', {
+        mode: 'final-round',
+        pitchId: pitch.id,
+        pitchTitle: pitch.title,
+        voice: selectedVoiceName,
+      })
     }
 
     if (narrationToken !== narrationTokenRef.current) {
@@ -229,6 +249,13 @@ export default function FinalRound() {
         synth.cancel()
         return
       }
+      console.info('[TTS] Playing browser speech narration', {
+        source: 'web-speech',
+        mode: 'final-round',
+        pitchId: pitch.id,
+        pitchTitle: pitch.title,
+        voice: selectedVoiceName,
+      })
       setLoadingPitchId(null)
       setSpeakingPitchId(pitch.id)
     }
@@ -374,6 +401,31 @@ export default function FinalRound() {
     const interval = window.setInterval(load, 2000)
     return () => window.clearInterval(interval)
   }, [load])
+
+  useEffect(() => {
+    if (prefetchItems.length === 0) {
+      return
+    }
+    let isCancelled = false
+    let nextIndex = 0
+    const workerCount = Math.min(3, prefetchItems.length)
+    const runWorker = async () => {
+      while (!isCancelled && nextIndex < prefetchItems.length) {
+        const item = prefetchItems[nextIndex]
+        nextIndex += 1
+        try {
+          await prefetchServerTtsAudio(item)
+        } catch {
+          // Best-effort warmup.
+        }
+      }
+    }
+    const workers = Array.from({ length: workerCount }, () => runWorker())
+    void Promise.all(workers)
+    return () => {
+      isCancelled = true
+    }
+  }, [prefetchItems])
 
   useEffect(() => {
     setIsTransitioning(false)

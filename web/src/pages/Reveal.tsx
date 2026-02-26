@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react'
 import { apiFetch } from '../utils/api'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getMascotColor, getMascotImage, getMascotName } from '../utils/mascots'
 import LeaderboardModal from '../components/LeaderboardModal'
 import { AnimatedMascot } from '../components/AnimatedMascot'
 import { buildNarrationText, normalizeKokoroVoiceName, selectSpeechVoice } from '../utils/voiceProfiles'
-import { fetchServerTtsAudio } from '../utils/ttsApi'
+import { fetchServerTtsAudio, prefetchServerTtsAudio } from '../utils/ttsApi'
 import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 
 type Pitch = {
@@ -120,6 +120,14 @@ export default function Reveal() {
 
   const roomCode = code ?? localStorage.getItem('pp:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`pp:player:${roomCode}`) ?? '' : ''
+  const prefetchItems = useMemo(
+    () =>
+      pitches.map((pitch) => ({
+        text: buildNarrationText(pitch.title, pitch.summary),
+        voiceId: normalizeKokoroVoiceName(pitch.voice),
+      })),
+    [pitches],
+  )
 
   const clearChallengeModalTimers = () => {
     if (challengeBuildTimerRef.current) {
@@ -206,11 +214,23 @@ export default function Reveal() {
         voiceId: selectedVoiceName,
       })
       if (serverAudio && narrationToken === narrationTokenRef.current) {
+        console.info('[TTS] Playing server audio narration', {
+          source: 'deapi',
+          mode: 'reveal',
+          pitchId: pitch.id,
+          pitchTitle: pitch.title,
+          voice: selectedVoiceName,
+        })
         await playBlobNarration(pitch.id, serverAudio, narrationToken)
         return
       }
     } catch {
-      // Fall back to browser speech synthesis.
+      console.info('[TTS] Server narration failed; falling back to Web Speech API', {
+        mode: 'reveal',
+        pitchId: pitch.id,
+        pitchTitle: pitch.title,
+        voice: selectedVoiceName,
+      })
     }
 
     if (narrationToken !== narrationTokenRef.current) {
@@ -240,6 +260,13 @@ export default function Reveal() {
         synth.cancel()
         return
       }
+      console.info('[TTS] Playing browser speech narration', {
+        source: 'web-speech',
+        mode: 'reveal',
+        pitchId: pitch.id,
+        pitchTitle: pitch.title,
+        voice: selectedVoiceName,
+      })
       setLoadingPitchId(null)
       setSpeakingPitchId(pitch.id)
     }
@@ -364,6 +391,31 @@ export default function Reveal() {
       }
     }
   }, [roomCode, currentIndex, navigate])
+
+  useEffect(() => {
+    if (prefetchItems.length === 0) {
+      return
+    }
+    let isCancelled = false
+    let nextIndex = 0
+    const workerCount = Math.min(3, prefetchItems.length)
+    const runWorker = async () => {
+      while (!isCancelled && nextIndex < prefetchItems.length) {
+        const item = prefetchItems[nextIndex]
+        nextIndex += 1
+        try {
+          await prefetchServerTtsAudio(item)
+        } catch {
+          // Best-effort warmup.
+        }
+      }
+    }
+    const workers = Array.from({ length: workerCount }, () => runWorker())
+    void Promise.all(workers)
+    return () => {
+      isCancelled = true
+    }
+  }, [prefetchItems])
 
   const handleChallenge = async () => {
     if (!currentPitch || !playerName) {

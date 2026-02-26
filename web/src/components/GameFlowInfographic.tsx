@@ -360,18 +360,18 @@ export default function GameFlowInfographic({ currentPhase = null }: GameFlowInf
         {/* Cards fanned on table */}
         <g transform="translate(-52,234) rotate(-16)">
           <use href="#card"/>
-          <text x="0" y="-7" textAnchor="middle" fontSize="5.8" fontWeight="900"
-            fill={INK} stroke="none">💡 PROBLEM</text>
+          <text x="0" y="5" textAnchor="middle" fontSize="20" fontWeight="900"
+            fill={INK} stroke="none">💡</text>
         </g>
         <g transform="translate(0,232)">
           <use href="#card"/>
-          <text x="0" y="-7" textAnchor="middle" fontSize="4.7" fontWeight="900"
-            fill={INK} stroke="none">🧩 CONSTRAINT</text>
+          <text x="0" y="5" textAnchor="middle" fontSize="20" fontWeight="900"
+            fill={INK} stroke="none">🧩</text>
         </g>
         <g transform="translate(52,234) rotate(16)">
           <use href="#card"/>
-          <text x="0" y="-7" textAnchor="middle" fontSize="5.8" fontWeight="900"
-            fill={INK} stroke="none">⭐ TWIST</text>
+          <text x="0" y="5" textAnchor="middle" fontSize="20" fontWeight="900"
+            fill={INK} stroke="none">⭐</text>
         </g>
       </g>
 

@@ -1,4 +1,4 @@
-export const KOKORO_VOICES = [
+export const KOKORO_MODEL_VOICES = [
   'Adam',
   'Alloy',
   'Aoede',
@@ -20,6 +20,20 @@ export const KOKORO_VOICES = [
   'Sarah',
   'Sky',
 ] as const
+
+export const QWEN3_TTS_VOICES = [
+  'Aiden',
+  'Dylan',
+  'Eric',
+  'Ono_Anna',
+  'Ryan',
+  'Serena',
+  'Sohee',
+  'Uncle_Fu',
+  'Vivian',
+] as const
+
+export const KOKORO_VOICES = [...KOKORO_MODEL_VOICES, ...QWEN3_TTS_VOICES] as const
 
 const DEFAULT_KOKORO_VOICE = 'Heart'
 const normalize = (value: string) => value.trim().toLowerCase()

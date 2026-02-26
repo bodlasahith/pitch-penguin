@@ -620,7 +620,7 @@ export default function Lobby() {
           <h3>Game settings</h3>
           <ul className="list">
             <li>
-              Deal timer: {dealTimerSeconds}s
+              <span>Deal timer: {dealTimerSeconds}s</span>
               {isHost && (
                 <input
                   type="range"
@@ -629,17 +629,19 @@ export default function Lobby() {
                   step={5}
                   value={dealTimerSeconds}
                   onChange={(event) => handleDealTimerChange(Number(event.target.value))}
-                  style={{ marginLeft: '12px', width: '180px', verticalAlign: 'middle' }}
+                  style={{ width: '100%' }}
                 />
               )}
             </li>
             <li>
-              Pitch timer: {pitchTimerSeconds}s
-              {isHost && (
-                <span style={{ marginLeft: '8px', fontSize: '0.9rem', color: '#6b6056' }}>
-                  ({formatPitchTimerLabel(pitchTimerSeconds)})
-                </span>
-              )}
+              <span>
+                Pitch timer: {pitchTimerSeconds}s
+                {isHost && (
+                  <span style={{ marginLeft: '8px', fontSize: '0.9rem', color: '#6b6056' }}>
+                    ({formatPitchTimerLabel(pitchTimerSeconds)})
+                  </span>
+                )}
+              </span>
               {isHost && (
                 <input
                   type="range"
@@ -648,26 +650,23 @@ export default function Lobby() {
                   step={30}
                   value={pitchTimerSeconds}
                   onChange={(event) => handlePitchTimerChange(Number(event.target.value))}
-                  style={{ marginLeft: '12px', width: '220px', verticalAlign: 'middle' }}
+                  style={{ width: '100%' }}
                 />
               )}
-              
             </li>
             <li>
-              Robot voices: {robotVoiceEnabled ? 'Enabled' : 'Disabled'}
+              <span>Robot voices: {robotVoiceEnabled ? 'Enabled' : 'Disabled'}</span>
               <button
                 className="button secondary"
-                style={{ marginLeft: '12px' }}
                 onClick={handleVoiceToggle}
               >
                 {robotVoiceEnabled ? 'Disable' : 'Enable'}
               </button>
             </li>
             <li>
-              SFX: {sfxEnabled ? 'Enabled' : 'Disabled'}
+              <span>SFX: {sfxEnabled ? 'Enabled' : 'Disabled'}</span>
               <button
                 className="button secondary"
-                style={{ marginLeft: '12px' }}
                 onClick={handleSfxToggle}
               >
                 {sfxEnabled ? 'Disable' : 'Enable'}

@@ -12,7 +12,7 @@ import {
   normalizeKokoroVoiceName,
   selectSpeechVoice,
 } from '../utils/voiceProfiles'
-import { fetchServerTtsAudio } from '../utils/ttsApi'
+import { fetchServerTtsAudio, prefetchServerTtsAudio } from '../utils/ttsApi'
 import { playActionSound, playPhaseSound } from '../utils/soundEffects'
 
 type GameResponse = {
@@ -85,6 +85,14 @@ export default function Pitch() {
   const previewAudioRef = useRef<HTMLAudioElement | null>(null)
   const voicePreviewCacheRef = useRef<Map<string, string>>(new Map())
   const previewTokenRef = useRef(0)
+  const voicePreviewText = useMemo(
+    () =>
+      buildNarrationText(
+        "Robot voice test:",
+        "Entrepreneurs, this is your startup voice check. Big idea. Big energy! This is the idea of a lifetime!! Are you ready to pitch? Let's go!",
+      ),
+    [],
+  )
 
   const roomCode = code ?? localStorage.getItem('pp:lastRoom') ?? ''
   const playerName = roomCode ? localStorage.getItem(`pp:player:${roomCode}`) ?? '' : ''
@@ -327,10 +335,7 @@ export default function Pitch() {
     stopVoicePreview()
     const previewToken = previewTokenRef.current
     const selectedVoiceName = normalizeKokoroVoiceName(voice)
-    const previewText = buildNarrationText(
-      'Voice preview',
-      'Investors, this is your Kokoro voice test. Big idea. Big energy. Big finish.',
-    )
+    const previewText = voicePreviewText
     const cachedPreviewUrl = voicePreviewCacheRef.current.get(selectedVoiceName)
     if (cachedPreviewUrl) {
       await playPreviewAudio(cachedPreviewUrl, previewToken)
@@ -344,13 +349,21 @@ export default function Pitch() {
         voiceId: selectedVoiceName,
       })
       if (serverAudio && previewToken === previewTokenRef.current) {
+        console.info('[TTS] Playing server audio preview', {
+          source: 'deapi',
+          voice: selectedVoiceName,
+          mode: 'pitch-preview',
+        })
         const cachedUrl = URL.createObjectURL(serverAudio)
         voicePreviewCacheRef.current.set(selectedVoiceName, cachedUrl)
         await playPreviewAudio(cachedUrl, previewToken)
         return
       }
     } catch {
-      // Fall back to browser speech synthesis.
+      console.info('[TTS] Server preview failed; falling back to Web Speech API', {
+        mode: 'pitch-preview',
+        voice: selectedVoiceName,
+      })
     }
 
     if (previewToken !== previewTokenRef.current) {
@@ -381,12 +394,28 @@ export default function Pitch() {
         synth.cancel()
         return
       }
+      console.info('[TTS] Playing browser speech preview', {
+        source: 'web-speech',
+        mode: 'pitch-preview',
+        voice: selectedVoiceName,
+      })
       setIsPreviewingVoice(true)
     }
     utterance.onend = () => setIsPreviewingVoice(false)
     utterance.onerror = () => setIsPreviewingVoice(false)
     synth.speak(utterance)
   }
+
+  useEffect(() => {
+    if (!robotVoiceEnabled) {
+      return
+    }
+    const selectedVoiceName = normalizeKokoroVoiceName(voice)
+    void prefetchServerTtsAudio({
+      text: voicePreviewText,
+      voiceId: selectedVoiceName,
+    })
+  }, [robotVoiceEnabled, voice, voicePreviewText])
 
   const isPenguin = penguin && playerName && penguin.toLowerCase() === playerName.toLowerCase()
   const playerStatus = playerName ? pitchStatuses[playerName] : undefined
