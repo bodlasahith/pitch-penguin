@@ -1,4 +1,4 @@
-import { CSSProperties, PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type PointerEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { playActionSound } from '../utils/soundEffects'
 import GameFlowInfographic from '../components/GameFlowInfographic'
@@ -53,7 +53,6 @@ export default function Home() {
   )
   const canvasBg = '#fffaf1'
   const colorOptions = ['#2e2a27', '#d24b4b', '#3e7c3e', '#2d6cdf', '#f5b544', '#7c4bd2']
-  const backgroundColor = { r: 255, g: 250, b: 241 }
 
   const stopVoicePreview = () => {
     previewTokenRef.current += 1
