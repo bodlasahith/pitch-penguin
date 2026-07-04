@@ -53,7 +53,7 @@ type GameResponse = {
 
 export default function Lobby() {
   const DEFAULT_DEAL_TIMER_SECONDS = 30
-  const DEFAULT_PITCH_TIMER_SECONDS = 90
+  const DEFAULT_PITCH_TIMER_SECONDS = 180
   const navigate = useNavigate()
   const { code } = useParams()
   const [players, setPlayers] = useState<RoomResponse['players']>([])
